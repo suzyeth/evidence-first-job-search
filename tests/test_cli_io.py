@@ -176,6 +176,7 @@ def test_boardsweep_main(monkeypatch, tmp_path, capsys):
     boards = {("ashby", "good"): {"jobs": [{"title": "Product Analyst", "location": "London",
                                             "jobUrl": "u", "publishedAt": "2026-10-01T00:00:00Z"}]}}
     monkeypatch.setattr(bs, "fetch_board", lambda kind, slug: boards.get((kind, slug)))
+    monkeypatch.setattr(bs, "_sponsor_tagger", lambda enabled: None)
     assert bs.main(["--config", str(cfg), "--since", "2026-09-01"]) == 0
     out = capsys.readouterr().out
     assert "板可达 1 / 探测 2" in out and "gh:gone" in out and "Product Analyst" in out

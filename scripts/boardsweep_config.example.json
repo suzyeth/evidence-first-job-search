@@ -3,6 +3,7 @@
   "ashby": ["cursor", "elevenlabs", "synthesia", "openai", "cohere"],
   "greenhouse": ["anthropic", "monzo", "stripe", "databricks", "intercom", "figma"],
   "want_title_regex": "forward[- ]deployed|applied ai|ai engineer|prompt engineer|solutions? engineer|game (designer|econom|analyst)|live ?ops|technical designer|(product|data|business) analyst",
-  "senior_title_regex": "\\b(senior|sr\\.?|lead|principal|staff|head of|director|vp|chief|manager|architect|distinguished|fellow)\\b",
+  "senior_title_regex": "\\b(senior|sr\\.?|lead|principal|staff|head of|director|vp|chief|manager|architect|distinguished|fellow|rvp|svp|evp)\\b",
+  "max_years": 3,
   "location_regex": "london|united kingdom|\\buk\\b|england|remote.*(uk|emea|europe)|emea"
 }

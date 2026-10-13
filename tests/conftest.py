@@ -28,10 +28,11 @@ def load_script(name):
 
 
 @pytest.fixture(autouse=True)
-def _no_real_network(monkeypatch):
-    """Safety net: any test that forgets to fake the register download fails instead of hitting gov.uk."""
+def _no_real_network(monkeypatch, tmp_path_factory):
+    """Safety net: tests never reach gov.uk and never read a register cached on this machine."""
     sc = load_script("sponsor_check")
 
     def blocked(url, timeout=60):
         raise AssertionError(f"test tried to reach the network: {url}")
     monkeypatch.setattr(sc, "_fetch", blocked)
+    monkeypatch.setattr(sc, "CACHE_DIR", str(tmp_path_factory.mktemp("empty-cache")))

@@ -49,7 +49,7 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
    - `DEAD?` → 只中一个死信标记,人工复核。
    - `ERR` → 网络错 ≠ 死,换渠道人工核。
 3. **净新增**:`python tools/sweep.py new <距上轮天数>`(LinkedIn + Indeed),或 `linkedin 1` 做 24h 热扫。覆盖率 < 95% 时不得说"全量跑完",用 `--resume` 补。每个命中岗位会自动标担保状态:`担保✅(法人名 · 城市)` 先核对法人是不是同一家;`担保❓` 名字太常见,必须先查法人名;`担保❌` 名册查无;`担保?(中介…)` 中介岗不查。标注只是初筛,入队前仍按第 ③ 道 Gate 用 `sponsor_check.py --jd` 复核。
-4. **雇主板补扫**:`python tools/boardsweep.py [--since YYYY-MM-DD]`,直打 Ashby / Greenhouse 公开 API,同样按板 slug 标担保状态(slug 和公司名差太多时,把 slug 当键加进 `sponsor_aliases.json`)。
+4. **雇主板补扫**:`python tools/boardsweep.py [--since YYYY-MM-DD]`,直打 Ashby / Greenhouse 公开 API,同样标担保状态(Greenhouse 用 JD 里的真实公司名,Ashby 用板 slug;slug 和公司名差太多时用 `sponsor_check.py --add-alias` 加对照)。它还会读每个命中岗位的 JD 全文自动体检:`JD❌不担保` / `JD⚠️要安全审查(SC/DV)` / `正文Senior` / `要N年+`(超过配置里的 `max_years`)/ `£Xk<门槛`。这几项分别对应 5 道 Gate 的 ③②②③,标出来的岗位直接降级,不用再点开 JD。
 5. 新岗逐个过 **5 道 Gate**(见下),过了才入 SUBMIT-QUEUE,**入队即加进 tracked**。
 6. 回写 `applications.md`(新增"第 N 轮"段)+ `FOCUS.md` 日志;清临时文件。
 
@@ -58,7 +58,7 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
 | Gate | 判据 | 一票否决的典型信号 |
 |------|------|------|
 | ① 存活 | 雇主自己的 ATS / careers 页在架 | 只在 LinkedIn 镜像存在、雇主板查无 |
-| ② 级别 | **读正文首段**,不只看标题 | Senior/Lead/Principal;"X+ years" 超出用户年限 —— 标题不带 Senior 但正文第一句是 Senior 的情况很常见 |
+| ② 级别 | **读正文首段**,不只看标题(`jd_check.py` 会自动标「正文Senior」和超线年限) | Senior/Lead/Principal;"X+ years" 超出用户年限 —— 标题不带 Senior 但正文第一句是 Senior 的情况很常见 |
 | ③ 工作权 | 用户所在国家的工作许可/担保条件 | JD 明写不担保;雇主不在官方担保名册 —— 英国用 `python tools/sponsor_check.py "<公司>" --jd <JD.md>` 一步查名册 + 扫 JD |
 | ④ 硬技能 | Required 段逐条对 master-cv | 有 master-cv 里完全没有证据的硬性要求 |
 | ⑤ 渠道 | 直投 vs 中介 | 中介岗:先问清雇主再给 CV,不裸交 |

@@ -147,7 +147,7 @@ def test_boardsweep_tags_hits_per_board(monkeypatch, tmp_path, capsys):
     out = capsys.readouterr().out
     assert out.count("担保✅") == 2 and fake.seen == ["skin analytics"]   # looked up once per board
     assert bs.main(["--config", str(cfg), "--no-sponsor"]) == 0
-    assert "担保" not in capsys.readouterr().out
+    assert "担保✅" not in capsys.readouterr().out
 
 
 def test_boardsweep_sponsor_tagger_failure(monkeypatch, capsys):

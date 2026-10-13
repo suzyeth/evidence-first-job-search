@@ -413,6 +413,32 @@ class SponsorTagger:
         return {"status": result.status, "legal": legal, "town": town, "label": label, "display": display}
 
 
+# ---------------------------------------------------------------- --add-alias
+
+def add_alias(trading: str, legal: str, register: Register, aliases_path: str) -> int:
+    """确认法人名确实在名册里,再写进别名文件;写入的是名册里的原样写法。"""
+    wanted = core_name(legal)
+    org = next((o for name, o in register.items() if name.strip().lower() == legal.strip().lower()), None) \
+        or next((o for o in register.values() if core_name(o.name) == wanted), None)
+    if org is None:
+        print(f"❌ 名册里没有「{legal}」,没有写入。")
+        close = difflib.get_close_matches(legal, list(register), n=3, cutoff=0.8)
+        if close:
+            print("   你要找的是不是:" + " / ".join(close))
+        return 1
+    current = {}
+    if os.path.exists(aliases_path):
+        with open(aliases_path, "r", encoding="utf-8") as f:
+            current = json.load(f)
+    updated = {**current, trading.strip(): org.name}
+    with open(aliases_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(updated, ensure_ascii=False, indent=2) + "\n")
+    print(f"✅ 已加入:{trading.strip()} → {org.name}({org.town} · {org.rating} 级)")
+    if SKILLED_WORKER not in org.routes:
+        print(f"⚠️ 注意:这家机构在名册里没有 Skilled Worker 路线(只有 {', '.join(sorted(org.routes))})。")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="英国签证担保名册核查 + JD 担保措辞扫描")
     p.add_argument("companies", nargs="*", help="公司名(商号或法人名均可)")
@@ -424,7 +450,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--aliases", default=DEFAULT_ALIASES, help="商号 → 法人名 别名文件")
     p.add_argument("--all-routes", action="store_true", help="显示全部签证路线")
     p.add_argument("--json", action="store_true", help="输出 JSON")
+    p.add_argument("--add-alias", nargs=2, metavar=("商号", "法人名"),
+                   help="核实法人名在名册里后,把「商号 → 法人名」写进别名文件")
     args = p.parse_args(argv)
+
+    if args.add_alias:
+        try:
+            register = load_register(args.register or ensure_register(args.max_age, args.refresh))
+        except (RegisterError, OSError) as exc:
+            print(f"❌ {exc}", file=sys.stderr)
+            return 1
+        return add_alias(args.add_alias[0], args.add_alias[1], register, args.aliases)
 
     names = [c for c in args.companies if c.strip()]
     if args.file:

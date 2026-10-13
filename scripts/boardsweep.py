@@ -6,7 +6,8 @@
   python boardsweep.py                      # 用同目录 boardsweep_config.json
   python boardsweep.py --since 2026-01-01   # 只看该日期之后发布/更新的岗
   python boardsweep.py --config <path>
-  python boardsweep.py --no-sponsor         # 不标担保状态(默认按板 slug 查 gov.uk 担保名册)
+  python boardsweep.py --no-sponsor         # 不标担保状态(默认查 gov.uk 担保名册)
+  python boardsweep.py --no-jd              # 不做 JD 体检(默认读 JD 全文,标不担保 / 隐藏 Senior / 年限 / 薪资低于签证门槛)
 配置格式见 boardsweep_config.example.json。slug 不确定时:打开公司 careers 页,看跳转到的 ATS 域名。
 """
 from __future__ import annotations
@@ -23,6 +24,11 @@ from datetime import date, datetime
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36"}
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+import jd_check  # noqa: E402  (same folder)
+
+DEFAULT_MAX_YEARS = 3
 
 
 @dataclass(frozen=True)
@@ -41,6 +47,9 @@ class Hit:
     location: str
     url: str
     date: str
+    company: str = ""     # Greenhouse 给真实公司名,比 slug 更适合查名册
+    jd: str = ""          # JD 纯文本
+    comp: str = ""        # Ashby 的薪资摘要(多数岗位为空)
 
 
 def load_config(path: str) -> dict:
@@ -79,7 +88,9 @@ def ashby_hits(slug: str, data: dict, f: Filters) -> list[Hit]:
         loc = (str(j.get("location", "")) + " " + str(j.get("secondaryLocations", ""))).strip()
         stamp = j.get("publishedAt")
         if wanted(title, loc, stamp, f):
-            out.append(Hit("ashby", slug, title, loc[:46], j.get("jobUrl") or "", (stamp or "")[:10]))
+            comp = (j.get("compensation") or {}).get("compensationTierSummary") or ""
+            out.append(Hit("ashby", slug, title, loc[:46], j.get("jobUrl") or "", (stamp or "")[:10],
+                           jd=j.get("descriptionPlain") or "", comp=comp))
     return out
 
 
@@ -89,7 +100,8 @@ def greenhouse_hits(slug: str, data: dict, f: Filters) -> list[Hit]:
         title, loc = j.get("title", ""), (j.get("location") or {}).get("name", "")
         stamp = j.get("updated_at")
         if wanted(title, loc, stamp, f):
-            out.append(Hit("gh", slug, title, loc[:46], j.get("absolute_url", ""), (stamp or "")[:10]))
+            out.append(Hit("gh", slug, title, loc[:46], j.get("absolute_url", ""), (stamp or "")[:10],
+                           company=j.get("company_name") or "", jd=jd_check.html_to_text(j.get("content", ""))))
     return out
 
 
@@ -98,8 +110,10 @@ def _get(url: str, timeout: int = 20) -> dict:
 
 
 def fetch_board(kind: str, slug: str) -> dict | None:
-    urls = ([f"https://api.ashbyhq.com/posting-api/job-board/{slug}"] if kind == "ashby" else
-            [f"https://{h}/v1/boards/{slug}/jobs" for h in ("boards-api.greenhouse.io", "boards-api.eu.greenhouse.io")])
+    # 带上 JD 全文 / 薪资摘要,给 jd_check 用
+    urls = ([f"https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"] if kind == "ashby" else
+            [f"https://{h}/v1/boards/{slug}/jobs?content=true"
+             for h in ("boards-api.greenhouse.io", "boards-api.eu.greenhouse.io")])
     for url in urls:   # Greenhouse 部分板只在 EU 节点
         try:
             return _get(url)
@@ -130,6 +144,30 @@ def _sponsor_tagger(enabled: bool):
         return None
 
 
+def _company_key(h: Hit) -> str:
+    return h.company or slug_to_name(h.slug)
+
+
+def _sponsor_tags(hits: list[Hit], enabled: bool) -> dict[str, str]:
+    """每家公司只查一次名册。"""
+    tagger = _sponsor_tagger(enabled) if hits else None
+    if tagger is None:
+        return {}
+    return {key: tagger.tag(key)["display"] for key in dict.fromkeys(_company_key(h) for h in hits)}
+
+
+def _jd_summary(all_tags) -> str:
+    counts = {"❌不担保": 0, "隐藏Senior": 0, "年限超线": 0, "薪资低于门槛": 0}
+    for found in all_tags:
+        counts["❌不担保"] += any(t == "JD❌不担保" for t in found)
+        counts["隐藏Senior"] += any(t == "正文Senior" for t in found)
+        counts["年限超线"] += any(t.startswith("要") for t in found)
+        counts["薪资低于门槛"] += any(t.startswith("£") for t in found)
+    return ("JD 体检:" + " · ".join(f"{k} {v}" for k, v in counts.items())
+            + f"(薪资门槛 £{jd_check.STANDARD_THRESHOLD:,} / 下限 £{jd_check.FLOOR_THRESHOLD:,},"
+            f"{jd_check.THRESHOLD_CHECKED} 核对 gov.uk)\n")
+
+
 def dedupe(hits: list[Hit]) -> list[Hit]:
     seen, out = set(), []
     for h in sorted(hits, key=lambda h: (h.slug, h.title)):
@@ -145,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--config", default=os.path.join(SCRIPT_DIR, "boardsweep_config.json"))
     p.add_argument("--since", help="只看该日期(YYYY-MM-DD)之后发布/更新的岗")
     p.add_argument("--no-sponsor", action="store_true", help="不标担保状态")
+    p.add_argument("--no-jd", action="store_true", help="不做 JD 体检")
     args = p.parse_args(argv)
     cfg = load_config(args.config)
     try:
@@ -168,12 +207,16 @@ def main(argv: list[str] | None = None) -> int:
         print("  不可达:", " ".join(unreachable))
     unique = dedupe(hits)
     print(f"目标地点 × 非-Senior × 目标标题族命中:{len(unique)}\n")
-    tagger = _sponsor_tagger(not args.no_sponsor) if unique else None
-    tags = ({slug: tagger.tag(slug_to_name(slug))["display"] for slug in dict.fromkeys(h.slug for h in unique)}
-            if tagger else {})
+    sponsor_tags = _sponsor_tags(unique, not args.no_sponsor)
+    jd_tags = {} if args.no_jd else {h: jd_check.tags(jd_check.analyze(h.jd, h.comp),
+                                                      int(cfg.get("max_years", DEFAULT_MAX_YEARS)))
+                                     for h in unique}
+    if jd_tags:
+        print(_jd_summary(jd_tags.values()))
     for h in unique:
-        tag = f" {tags[h.slug]}" if h.slug in tags else ""
-        print(f"  {h.date:<10} [{h.kind}:{h.slug}]{tag} {h.title[:52]:<52} | {h.location:<34} | {h.url[:78]}")
+        tag = f" {sponsor_tags[_company_key(h)]}" if _company_key(h) in sponsor_tags else ""
+        jd = f" [JD:{'·'.join(jd_tags[h])}]" if jd_tags.get(h) else ""
+        print(f"  {h.date:<10} [{h.kind}:{h.slug}]{tag}{jd} {h.title[:52]:<52} | {h.location:<34} | {h.url[:78]}")
     return 0
 
 

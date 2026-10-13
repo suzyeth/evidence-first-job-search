@@ -42,7 +42,8 @@ Most AI job-search tools assume the US market. This one handles the UK-specific 
 | Discover | `scripts/sweep.py`: incremental LinkedIn + Indeed scan (resumable, cross-site dedup, filters senior roles, tags agencies). `scripts/boardsweep.py`: scans target employers' own job boards. **Every hit is tagged with its sponsor-register status**, e.g. `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`, so you see who can sponsor before you open the JD (`--no-sponsor` to turn off) |
 | Track | `sweep.py live`: checks every tracked posting across 9 channels (Greenhouse, Ashby, Lever, Workable, LinkedIn…) |
 | Screen | 5 gates: live / level fit / right to work / evidenced hard skills / direct vs agency |
-| Sponsorship | `scripts/sponsor_check.py`: gov.uk sponsor register lookup with trading-name aliases + JD sponsorship-wording scan |
+| Sponsorship | `scripts/sponsor_check.py`: gov.uk sponsor register lookup with trading-name aliases + JD sponsorship-wording scan. `--add-alias "Brand" "Legal Name Ltd"` adds a mapping after checking the legal name is really on the register |
+| JD check | `scripts/jd_check.py`, also run automatically by `boardsweep.py` on every hit's full JD: flags "no sponsorship" wording, SC/DV security clearance, seniority hidden in the body ("We're looking for a Senior…"), years of experience above your limit, and salary below the Skilled Worker thresholds (£41,700 standard / £33,400 reduced floor, checked against gov.uk on 2026-10-13; occupation going rates can be higher) |
 | Tailor | Extract 5 signal types from the JD and map them to your own fact base. **Only true claims ship** |
 | Fact check | `scripts/fact_check.py`: fails the CV if a number, skill or metric isn't in your fact base, or if a confidential term or `[FILL]` slipped in. Exit code 1 = don't render the PDF |
 | Review | 5-dimension rubric plus a standalone reviewer prompt (truthfulness is a hard veto) |
@@ -70,9 +71,11 @@ python -m pip install --target vendor python-jobspy   # discovery only
 python sweep.py new 3 --plan     # show the query matrix, no network
 python sweep.py live --log       # liveness check for tracked jobs
 python sweep.py new 7            # new postings from the last 7 days, each tagged with sponsor status
-python boardsweep.py --since 2026-01-01
+python boardsweep.py --since 2026-01-01   # + sponsor tag and JD check on every hit
 python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # stdlib only, no install
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md
+python jd_check.py JD.txt --max-years 3                 # check one saved JD
+python sponsor_check.py --add-alias "Bumble" "Badoo Limited"
 ```
 
 Your configs, logs and fact base are listed in `.gitignore`. Tests run offline: `python -m pip install pytest pytest-cov && python -m pytest tests --cov=scripts` (coverage gate: 80%).
