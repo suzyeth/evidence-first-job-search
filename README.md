@@ -57,7 +57,7 @@ python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # stdlib only, no install
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md
 ```
 
-Your configs, logs and fact base are listed in `.gitignore`. Tests run offline: `python -m pip install pytest && python -m pytest tests`.
+Your configs, logs and fact base are listed in `.gitignore`. Tests run offline: `python -m pip install pytest pytest-cov && python -m pytest tests --cov=scripts` (coverage gate: 80%).
 
 ## Other countries
 

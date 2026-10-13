@@ -118,11 +118,12 @@ class Register(dict):
 
 
 def _rating(type_and_rating: str) -> str:
-    m = re.search(r"\(([^()]*?)\s*rating\)", type_and_rating, re.I)
-    if m:
-        return m.group(1).strip()
-    m = re.search(r"\(([^()]*)\)", type_and_rating)
-    return m.group(1).strip() if m else type_and_rating.strip()
+    """取最外层括号内容:'Worker (A rating)' -> 'A';'Worker (A (Premium))' -> 'A (Premium)'。"""
+    start, end = type_and_rating.find("("), type_and_rating.rfind(")")
+    if start == -1 or end <= start:
+        return type_and_rating.strip()
+    inner = type_and_rating[start + 1:end].strip()
+    return re.sub(r"\s*rating$", "", inner, flags=re.I)
 
 
 def load_register(path: str) -> Register:

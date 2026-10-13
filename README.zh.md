@@ -57,7 +57,7 @@ python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # 只用标准库，免安
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md
 ```
 
-你的配置文件、日志、事实库都在 `.gitignore` 里，不会被提交。测试不联网：`python -m pip install pytest && python -m pytest tests`。
+你的配置文件、日志、事实库都在 `.gitignore` 里，不会被提交。测试不联网：`python -m pip install pytest pytest-cov && python -m pytest tests --cov=scripts`(覆盖率闸门 80%)。
 
 ## 换成别的国家
 
