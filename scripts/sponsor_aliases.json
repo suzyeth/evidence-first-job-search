@@ -1,0 +1,17 @@
+{
+  "_readme": "商号 → 名册里登记的英国法人名。每条都在 2026-10-13 的 gov.uk 名册中核实存在。查到新的映射就往这里加(Companies House 可查法人名)。",
+  "Bumble": "Badoo Limited",
+  "Zego": "EXTRACOVER LIMITED",
+  "Compare the Market": "BGL Group Ltd",
+  "Sports Interactive": "SEGA Europe Limited",
+  "Viridien": "CGG Services (UK) Ltd",
+  "DNEG": "Double Negative Limited",
+  "LSEG": "London Stock Exchange Group plc",
+  "Zynga": "Take-Two Interactive Software Europe Limited",
+  "Sierra": "Sierra Technologies Ltd",
+  "paid.ai": "Agent Paid Limited",
+  "DNV": "DNV SERVICES UK LIMITED t/a DNV",
+  "Resolver": "Crisp Thinking Group Ltd t/a Resolver",
+  "Vinarchy": "Accolade Wines Limited",
+  "FDJ United": "FDJ Gaming Solutions UK Limited"
+}

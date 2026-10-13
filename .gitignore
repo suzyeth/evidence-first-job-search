@@ -1,0 +1,25 @@
+# Personal data — never commit
+scripts/sweep_config.json
+scripts/boardsweep_config.json
+tools/sweep_config.json
+tools/boardsweep_config.json
+master-cv-data.md
+!templates/master-cv-data.md
+applications/
+applications.md
+!templates/applications.md
+
+# Runtime output
+logs/
+state/
+vendor/
+__pycache__/
+*.pyc
+*.pdf
+_cover_letter_clean.md
+
+# Downloaded sponsor register
+scripts/cache/
+.pytest_cache/
+confidential-terms.txt
+!templates/confidential-terms.txt

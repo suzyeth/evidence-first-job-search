@@ -1,0 +1,71 @@
+/* Cover Letter PDF Stylesheet — minimal business letter (no letterhead) */
+/* Top: date -> recipient -> salutation -> body. Contact sits under the sign-off. */
+
+@page {
+  size: A4;
+  margin: 18mm 24mm 16mm 24mm;
+}
+
+body {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.8pt;
+  line-height: 1.5;
+  color: #1a1a1a;
+  max-width: none;
+}
+
+/* === Date + recipient block === */
+.meta p {
+  margin: 0;
+  line-height: 1.4;
+  color: #1a1a1a;
+}
+
+.date {
+  margin: 0 0 12pt 0 !important;
+  color: #555;
+}
+
+.recipient {
+  margin: 0 0 13pt 0 !important;
+}
+
+/* === Salutation === */
+.salutation {
+  margin: 0 0 11pt 0 !important;
+}
+
+/* === Body paragraphs === */
+p {
+  margin: 0 0 9pt 0;
+  text-align: left;
+}
+
+strong { font-weight: 600; color: #000; }
+em { font-style: italic; color: #333; }
+a { color: #2155a8; text-decoration: none; }
+
+/* === Sign-off === */
+.signoff {
+  margin: 14pt 0 0 0 !important;
+}
+
+.signoff .name {
+  font-weight: 400;
+  color: #1a1a1a;
+}
+
+.signoff .contact {
+  display: block;
+  margin-top: 4pt;
+  font-size: 8.5pt;
+  color: #777;
+  letter-spacing: 0.01em;
+}
+
+.signoff .contact a { color: #2155a8; }
+
+@media print {
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  a { color: #2155a8 !important; }
+}

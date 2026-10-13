@@ -1,0 +1,74 @@
+# Evidence-First Job Search
+
+[![CI](https://github.com/suzyeth/evidence-first-job-search/actions/workflows/ci.yml/badge.svg)](https://github.com/suzyeth/evidence-first-job-search/actions/workflows/ci.yml)
+
+[中文说明](README.zh.md)
+
+An AI-assisted job-search workflow where **every claim needs evidence**: every CV line traces back to your own fact base, and every posting has to be confirmed live on the employer's own ATS. **Built for the UK market**, with gov.uk visa-sponsor checks. It covers the whole pipeline: finding roles, checking whether a posting is really live, verifying visa sponsorship, JD-driven CV tailoring, pre-submission review, follow-ups, and salary negotiation.
+
+It works with any assistant. Claude Code, Codex, Cursor and Gemini CLI can read the files directly; with a chat assistant (ChatGPT, Claude, Gemini…) you paste in the relevant files.
+
+## Why
+
+Most AI job-search tools assume the US market. This one handles the UK-specific parts:
+
+- **Visa sponsorship checks.** The JD alone isn't enough; the employer has to appear on the gov.uk Register of Licensed Sponsors. The register uses *legal entity* names, so a trading name returning zero hits doesn't mean no licence. `scripts/sponsor_check.py` downloads the day's register, handles the lookup traps (names written without spaces, `t/a` trading names, quoted names with commas, common-word company names), maps trading names to legal entities, points you to Companies House when nothing matches, and scans the JD for sponsorship wording, all in one command.
+- **Is the LinkedIn posting actually live?** LinkedIn serves normal-looking pages for closed jobs. The runbook gives a reliable dead-job check plus the public APIs of the ATSs UK employers use (Greenhouse, Ashby, Lever, Workable, Teamtailor…), so you can verify at the source.
+- **Indeed UK blind spot.** Some roles never reach LinkedIn, so discovery scans both.
+- **UK salary bands**, the negotiation process, and less obvious leverage such as sponsorship term length.
+
+## What's inside
+
+| Stage | Contents |
+|-------|----------|
+| Discover | `scripts/sweep.py`: incremental LinkedIn + Indeed scan (resumable, cross-site dedup, filters senior roles, tags agencies). `scripts/boardsweep.py`: scans target employers' own job boards |
+| Track | `sweep.py live`: checks every tracked posting across 9 channels (Greenhouse, Ashby, Lever, Workable, LinkedIn…) |
+| Screen | 5 gates: live / level fit / right to work / evidenced hard skills / direct vs agency |
+| Sponsorship | `scripts/sponsor_check.py`: gov.uk sponsor register lookup with trading-name aliases + JD sponsorship-wording scan |
+| Tailor | Extract 5 signal types from the JD and map them to your own fact base. **Only true claims ship** |
+| Fact check | `scripts/fact_check.py`: fails the CV if a number, skill or metric isn't in your fact base, or if a confidential term or `[FILL]` slipped in. Exit code 1 = don't render the PDF |
+| Review | 5-dimension rubric plus a standalone reviewer prompt (truthfulness is a hard veto) |
+| After applying | Follow-up email templates, take-home playbook, salary negotiation handbook |
+| Templates | Fact base, application tracker, submit queue, JD archive, cover-letter skeleton, CV PDF stylesheets |
+
+Reference docs and script output are mostly in Chinese; code, configs and email templates are in English.
+
+## Usage
+
+- **Claude Code:** copy the folder to `~/.claude/skills/job-search/` and ask it to set up your job-search workspace.
+- **Codex / Cursor / Gemini CLI:** put the folder in your workspace. The agent reads `AGENTS.md`, then works from `SKILL.md`.
+- **Chat assistants:** paste `SKILL.md` first, then the files the task needs (e.g. `references/jd-driven-resume-workflow.md` + your fact base + the JD).
+
+Whichever you use, start by filling in your **fact base** from `templates/master-cv-data.md`. Every CV is derived from it, and that is what stops the AI from inventing experience.
+
+## Scripts (Python 3.10+)
+
+```bash
+cd scripts
+cp sweep_config.example.json sweep_config.json
+cp boardsweep_config.example.json boardsweep_config.json
+python -m pip install --target vendor python-jobspy   # discovery only
+
+python sweep.py new 3 --plan     # show the query matrix, no network
+python sweep.py live --log       # liveness check for tracked jobs
+python sweep.py new 7            # new postings from the last 7 days
+python boardsweep.py --since 2026-01-01
+python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # stdlib only, no install
+python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md
+```
+
+Your configs, logs and fact base are listed in `.gitignore`. Tests run offline: `python -m pip install pytest && python -m pytest tests`.
+
+## Other countries
+
+Change the locations and `indeed_country_*` in `sweep_config.json`, then replace the right-to-work section of `references/sweep-runbook.md` and the salary bands in `references/salary-negotiation.md` with local equivalents.
+
+## Acknowledgements
+
+The drafter-reviewer pattern and the idea of running a job search as an agent workflow were influenced by [MadsLorentzen/ai-job-search](https://github.com/MadsLorentzen/ai-job-search). Job discovery uses [JobSpy](https://github.com/speedyapply/JobSpy).
+
+## Disclaimer
+
+For personal, educational use. The scripts access public pages and APIs of LinkedIn, Indeed and various ATSs. You are responsible for complying with each site's terms of service and keeping request rates reasonable. Salary and immigration information is indicative only; check current official guidance.
+
+MIT License

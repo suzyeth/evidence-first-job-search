@@ -1,0 +1,42 @@
+{
+  "_readme": "复制为 sweep_config.json 后填写。queries = [赛道代码, 搜索词, 地点];tracked = 正在跟踪存活的岗位。词表纪律:只加真实产出过岗位的词。",
+
+  "queries": [
+    ["GD",  "game designer",             "United Kingdom"],
+    ["GD",  "game economy designer",     "London, UK"],
+    ["GP",  "gameplay programmer",       "United Kingdom"],
+    ["AI",  "applied ai engineer",       "London, UK"],
+    ["AI",  "prompt engineer",           "United Kingdom"],
+    ["FDE", "forward deployed engineer", "London, UK"],
+    ["DA",  "product analyst",           "London, UK"]
+  ],
+
+  "tracked": [
+    {"label": "示例 Greenhouse 岗",  "channel": "greenhouse",  "args": ["<board-slug>", 1234567]},
+    {"label": "示例 Ashby 岗(推荐)", "channel": "ashby_title", "args": ["<company-slug>", "Exact Job Title"]},
+    {"label": "示例 Ashby id 岗",    "channel": "ashby_id",    "args": ["<company-slug>", "<uuid>"]},
+    {"label": "示例 Lever 岗",       "channel": "lever",       "args": ["<company-slug>", "<posting-id>"]},
+    {"label": "示例 Workable 岗",    "channel": "workable",    "args": ["<account>", "<shortcode>"]},
+    {"label": "示例 Teamtailor 岗",  "channel": "teamtailor",  "args": ["<subdomain>", "<id-slug>"]},
+    {"label": "示例 LinkedIn 镜像",  "channel": "linkedin",    "args": "<linkedin-job-id>"}
+  ],
+
+  "exclude_title_regex": "senior|staff|lead|principal|head of|director|manager,|vp |vice president|intern(ship)?|field engineer|undergraduate|placement year",
+  "noise_company_regex": "jobster|crossing hurdles|hackajob|freecash",
+  "agency_company_regex": "harnham|la fosse|harvey nash|understanding recruitment|european tech recruit",
+
+  "title_relevance": {
+    "GD":  "game (designer|econom|analyst)|systems designer.*game|live ?ops|level designer|moneti[sz]ation",
+    "GP":  "game(play)? (programmer|developer|engineer)|tools? programmer|technical designer|unity.*developer",
+    "FDE": "forward[- ]deployed|deployed engineer|solutions? engineer|customer engineer",
+    "AI":  "\\bai\\b.*(engineer|developer|analyst|product)|applied ai|agent(ic)? (developer|engineer)|prompt engineer",
+    "DA":  "(product|commercial|pricing|growth|game|data|insights?).*analyst|analytics engineer"
+  },
+  "display_track_priority": ["GP", "GD", "FDE", "AI", "DA"],
+
+  "indeed_country_default": "UK",
+  "indeed_country_by_location": {
+    "\\bchina\\b|中国": "China",
+    "\\busa?\\b|united states": "USA"
+  }
+}

@@ -1,0 +1,147 @@
+/* Resume PDF Stylesheet — shared across all tracks */
+/* Conservative, ATS-friendly, single-column. */
+
+@page {
+  size: A4;
+  margin: 18mm 18mm 18mm 18mm;
+}
+
+body {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.45;
+  color: #1a1a1a;
+  max-width: none;
+}
+
+/* === Header === */
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  margin: 0 0 4pt 0;
+  letter-spacing: -0.01em;
+  color: #000;
+}
+
+/* Contact line — render as one paragraph after H1 */
+h1 + p {
+  font-size: 9.5pt;
+  color: #555;
+  margin: 0 0 14pt 0;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10pt;
+}
+
+h1 + p a {
+  color: #2155a8;
+  text-decoration: none;
+}
+
+/* === Section headings === */
+h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #1a1a1a;
+  border-bottom: 1px solid #999;
+  padding-bottom: 2pt;
+  margin: 14pt 0 8pt 0;
+}
+
+/* === Job title / project title === */
+h3 {
+  font-size: 11pt;
+  font-weight: 600;
+  margin: 8pt 0 2pt 0;
+  color: #000;
+}
+
+h4 {
+  font-size: 10pt;
+  font-weight: 500;
+  font-style: italic;
+  color: #555;
+  margin: 0 0 4pt 0;
+}
+
+/* === Body text === */
+p {
+  margin: 0 0 6pt 0;
+}
+
+ul {
+  margin: 4pt 0 8pt 0;
+  padding-left: 18pt;
+}
+
+li {
+  margin-bottom: 3pt;
+}
+
+li::marker {
+  color: #888;
+}
+
+/* === Links === */
+a {
+  color: #2155a8;
+  text-decoration: none;
+}
+
+/* === Strong / emphasis === */
+strong {
+  font-weight: 600;
+  color: #000;
+}
+
+em {
+  font-style: italic;
+  color: #555;
+}
+
+/* === Code (for technical resumes — skill lists, etc.) === */
+code {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 9.5pt;
+  background: #f3f3f0;
+  padding: 1pt 4pt;
+  border-radius: 2pt;
+}
+
+/* === Horizontal rule (between major sections if you want one) === */
+hr {
+  border: none;
+  border-top: 1px solid #ccc;
+  margin: 12pt 0;
+}
+
+/* === Tables (for skills matrix, language proficiency, etc.) === */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4pt 0 8pt 0;
+  font-size: 10pt;
+}
+
+th, td {
+  text-align: left;
+  padding: 3pt 8pt;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  font-weight: 600;
+  color: #555;
+}
+
+/* === Print optimizations === */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  a {
+    color: #2155a8 !important;
+  }
+}

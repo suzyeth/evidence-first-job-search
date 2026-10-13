@@ -1,0 +1,5 @@
+# 保密词清单:fact_check.py 会在简历 / 求职信里逐条搜索,命中即 ❌。
+# 一行一个,不区分大小写;以 re: 开头的行按正则处理。放在工作区根目录(和 master-cv-data.md 同级)。
+# 例:
+# Project Falcon
+# re:\b(revenue|GMV)\s+of\s+[£$¥]
