@@ -2,6 +2,8 @@ import importlib.util
 import os
 import sys
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.join(HERE, "..", "scripts")
 FIXTURES = os.path.join(HERE, "fixtures")
@@ -23,3 +25,13 @@ def load_script(name):
     finally:
         sys.argv = saved
     return module
+
+
+@pytest.fixture(autouse=True)
+def _no_real_network(monkeypatch):
+    """Safety net: any test that forgets to fake the register download fails instead of hitting gov.uk."""
+    sc = load_script("sponsor_check")
+
+    def blocked(url, timeout=60):
+        raise AssertionError(f"test tried to reach the network: {url}")
+    monkeypatch.setattr(sc, "_fetch", blocked)

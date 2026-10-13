@@ -6,6 +6,7 @@
   python boardsweep.py                      # 用同目录 boardsweep_config.json
   python boardsweep.py --since 2026-01-01   # 只看该日期之后发布/更新的岗
   python boardsweep.py --config <path>
+  python boardsweep.py --no-sponsor         # 不标担保状态(默认按板 slug 查 gov.uk 担保名册)
 配置格式见 boardsweep_config.example.json。slug 不确定时:打开公司 careers 页,看跳转到的 ATS 域名。
 """
 from __future__ import annotations
@@ -107,6 +108,28 @@ def fetch_board(kind: str, slug: str) -> dict | None:
     return None
 
 
+def slug_to_name(slug: str) -> str:
+    """招聘板 slug 转成可查名册的公司名:'checkout.com' -> 'checkout','skin-analytics' -> 'skin analytics'。
+    slug 和真名差太多时,把 slug 当键加进 sponsor_aliases.json 即可。"""
+    name = re.sub(r"\.(co\.uk|com|ai|io|co|org|net|dev|app)$", "", slug.lower())
+    name = re.sub(r"[-_.]+", " ", name)
+    return re.sub(r"\d+$", "", name).strip()
+
+
+def _sponsor_tagger(enabled: bool):
+    """加载担保名册;失败只告警,不影响扫板。"""
+    if not enabled:
+        return None
+    try:
+        if SCRIPT_DIR not in sys.path:
+            sys.path.insert(0, SCRIPT_DIR)
+        import sponsor_check
+        return sponsor_check.SponsorTagger.load()
+    except Exception as exc:
+        print(f"⚠️ 担保名册加载失败({type(exc).__name__}: {exc}),本轮不标担保状态。")
+        return None
+
+
 def dedupe(hits: list[Hit]) -> list[Hit]:
     seen, out = set(), []
     for h in sorted(hits, key=lambda h: (h.slug, h.title)):
@@ -121,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="直扫雇主 Ashby / Greenhouse 招聘板")
     p.add_argument("--config", default=os.path.join(SCRIPT_DIR, "boardsweep_config.json"))
     p.add_argument("--since", help="只看该日期(YYYY-MM-DD)之后发布/更新的岗")
+    p.add_argument("--no-sponsor", action="store_true", help="不标担保状态")
     args = p.parse_args(argv)
     cfg = load_config(args.config)
     try:
@@ -144,8 +168,12 @@ def main(argv: list[str] | None = None) -> int:
         print("  不可达:", " ".join(unreachable))
     unique = dedupe(hits)
     print(f"目标地点 × 非-Senior × 目标标题族命中:{len(unique)}\n")
+    tagger = _sponsor_tagger(not args.no_sponsor) if unique else None
+    tags = ({slug: tagger.tag(slug_to_name(slug))["display"] for slug in dict.fromkeys(h.slug for h in unique)}
+            if tagger else {})
     for h in unique:
-        print(f"  {h.date:<10} [{h.kind}:{h.slug}] {h.title[:52]:<52} | {h.location:<34} | {h.url[:78]}")
+        tag = f" {tags[h.slug]}" if h.slug in tags else ""
+        print(f"  {h.date:<10} [{h.kind}:{h.slug}]{tag} {h.title[:52]:<52} | {h.location:<34} | {h.url[:78]}")
     return 0
 
 

@@ -48,6 +48,7 @@ NOISY_HIT_THRESHOLD = 15
 MAX_SHOWN = 12
 FUZZY_CUTOFF = 0.85
 KIND_RANK = {"exact": 0, "squashed": 1, "contains": 2, "similar": 3}
+WEB_DOMAIN = re.compile(r"\.(?:co\.uk|com|ai|io|app|dev|net|org|gg)\b", re.I)
 TRADING_AS = re.compile(r"\s+(?:t\s*/\s*as?|trading\s+as)\s+", re.I)
 
 
@@ -63,8 +64,8 @@ def _tokens(name: str) -> list[str]:
 
 
 def core_name(name: str) -> str:
-    """去标点、去法人后缀:'NOTHING TECHNOLOGY LIMITED' -> 'nothing technology'。"""
-    tokens = _tokens(name)
+    """去域名、标点、法人后缀:'NOTHING TECHNOLOGY LIMITED' -> 'nothing technology','Checkout.com' -> 'checkout'。"""
+    tokens = _tokens(WEB_DOMAIN.sub(" ", name))
     while tokens and tokens[-1] in LEGAL_SUFFIXES:
         tokens = tokens[:-1]
     if tokens and tokens[0] == "the":
@@ -205,7 +206,7 @@ class LookupResult:
     companies_house_url: str = ""
 
 
-def _search(core: str, register: Register) -> dict[str, Match]:
+def _search(core: str, register: Register, fuzzy: bool = True) -> dict[str, Match]:
     variants, by_core = register.index()
     found: dict[str, Match] = {}
 
@@ -225,7 +226,7 @@ def _search(core: str, register: Register) -> dict[str, Match]:
             add(v.org, "squashed")
         elif tokens <= v.tokens:
             add(v.org, "contains")
-    if not found:
+    if not found and fuzzy:
         for near in difflib.get_close_matches(core, list(by_core), n=5, cutoff=FUZZY_CUTOFF):
             for v in by_core[near]:
                 add(v.org, "similar")
@@ -240,14 +241,14 @@ def _alias_for(query: str, aliases: dict) -> str:
     return ""
 
 
-def lookup(query: str, register: Register, aliases: dict | None = None) -> LookupResult:
+def lookup(query: str, register: Register, aliases: dict | None = None, fuzzy: bool = True) -> LookupResult:
     result = LookupResult(query=query, companies_house_url=COMPANIES_HOUSE_SEARCH + quote_plus(query.strip()))
-    found = _search(core_name(query), register)
+    found = _search(core_name(query), register, fuzzy)
     legal = _alias_for(query, aliases or {})
     alias_pinned = False
     if legal:
         result.via_alias = legal
-        alias_found = _search(core_name(legal), register)
+        alias_found = _search(core_name(legal), register, fuzzy)
         alias_pinned = any(m.kind in ("exact", "squashed") for m in alias_found.values())
         if alias_pinned:
             # 别名已经精确定位到法人,商号本身的子串/近似命中只是噪音
@@ -261,8 +262,11 @@ def lookup(query: str, register: Register, aliases: dict | None = None) -> Looku
     result.matches, result.total_hits = ranked, len(ranked)
     core = core_name(query)
     # 别名已精确定位法人时,常见词的噪音不再影响结论
+    single_word = len(core.split()) == 1
+    only_substring = not any(m.kind in ("exact", "squashed") for m in ranked)
+    # 单个词只有子串命中时(Faculty -> 某医学院学部),多半是撞名,同样不能下结论
     result.noisy = not alias_pinned and (
-        (len(core.split()) == 1 and core in COMMON_WORDS) or len(ranked) > NOISY_HIT_THRESHOLD)
+        (single_word and (core in COMMON_WORDS or only_substring)) or len(ranked) > NOISY_HIT_THRESHOLD)
 
     strong = [m for m in ranked if m.kind != "similar"]
     if result.noisy and not legal and strong:
@@ -363,6 +367,50 @@ def load_aliases(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     return {k: v for k, v in data.items() if not k.startswith("_")}
+
+
+# ---------------------------------------------------------------- batch tagging (used by sweep / boardsweep)
+
+TAG_ICON = {"SKILLED_WORKER": "✅", "OTHER_ROUTE_ONLY": "⚠️", "AMBIGUOUS": "❓", "POSSIBLE": "❓",
+            "NOT_FOUND": "❌"}
+
+
+class SponsorTagger:
+    """名册只加载一次、按公司名缓存;批量标注时关闭近似匹配,保证上百家公司也能秒出。"""
+
+    def __init__(self, register: Register, aliases: dict | None = None):
+        self.register = register
+        self.aliases = aliases or {}
+        self._cache: dict[str, dict] = {}
+
+    @classmethod
+    def load(cls, max_age_days: float = 1.0, refresh: bool = False, register_path: str | None = None,
+             aliases_path: str = DEFAULT_ALIASES) -> "SponsorTagger":
+        path = register_path or ensure_register(max_age_days, refresh)
+        return cls(load_register(path), load_aliases(aliases_path))
+
+    def tag(self, company: str) -> dict:
+        key = core_name(company or "")
+        if not key:
+            return {"status": "UNKNOWN", "legal": "", "town": "", "label": "担保?", "display": "担保?"}
+        if key not in self._cache:
+            self._cache[key] = self._tag(company)
+        return self._cache[key]
+
+    def _tag(self, company: str) -> dict:
+        result = lookup(company, self.register, self.aliases, fuzzy=False)
+        label = "担保" + TAG_ICON[result.status]
+        org = None
+        if result.status in ("SKILLED_WORKER", "OTHER_ROUTE_ONLY"):
+            # 附上命中的法人名和城市:同名不同家(Cursor Ltd · Lincoln ≠ Cursor 编辑器)要靠人眼一眼识别
+            alias_core = core_name(result.via_alias) if result.via_alias else None
+            strong = [m for m in result.matches if m.kind != "similar"]
+            org = next((m.org for m in strong if alias_core and core_name(m.org.name) == alias_core), None) \
+                or next((m.org for m in strong if SKILLED_WORKER in m.org.routes), None) \
+                or (strong[0].org if strong else None)
+        legal, town = (org.name, org.town) if org else ("", "")
+        display = f"{label}({legal} · {town})" if legal else label
+        return {"status": result.status, "legal": legal, "town": town, "label": label, "display": display}
 
 
 def main(argv: list[str] | None = None) -> int:

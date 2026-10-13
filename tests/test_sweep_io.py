@@ -138,6 +138,24 @@ def test_run_task_success(monkeypatch):
     assert r["status"] == "ok" and r["rows"] == [{"title": "A"}] and r["attempts"] == 1
 
 
+def test_run_task_passes_config_to_worker_via_env(monkeypatch):
+    seen = {}
+
+    def fake_run(cmd, **kwargs):
+        seen["env"] = kwargs.get("env") or {}
+        raise subprocess.TimeoutExpired(cmd, 1)
+    monkeypatch.setattr(sw.subprocess, "run", fake_run)
+    monkeypatch.setattr(sys, "argv", ["sweep.py", "new", "--config", EXAMPLE_SWEEP_CONFIG])
+    sw._run_task(("DA", "analyst", "London", "linkedin"), 24, 5, 0)
+    assert seen["env"][sw.CONFIG_ENV] == os.path.abspath(EXAMPLE_SWEEP_CONFIG)
+
+
+def test_config_path_reads_env_in_worker(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["sweep.py", "_query_worker"])
+    monkeypatch.setenv(sw.CONFIG_ENV, "/somewhere/custom.json")
+    assert sw._config_path() == "/somewhere/custom.json"
+
+
 def test_run_task_retries_then_reports_error(monkeypatch):
     fake_run, calls = fake_run_factory(lambda n: ("fail", "boom\nlast line"))
     monkeypatch.setattr(sw.subprocess, "run", fake_run)
@@ -189,6 +207,7 @@ def discovery_env(monkeypatch, tmp_path):
     monkeypatch.setattr(sw, "STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setattr(sw, "LOG_DIR", str(tmp_path / "logs"))
     monkeypatch.setitem(sys.modules, "jobspy", types.ModuleType("jobspy"))
+    monkeypatch.setattr(sw, "_sponsor_tagger", lambda enabled: None)   # tagging is covered elsewhere; stay offline
     calls = []
 
     def fake_task(task, hours, timeout, retries):

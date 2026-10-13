@@ -39,7 +39,7 @@ Most AI job-search tools assume the US market. This one handles the UK-specific 
 
 | Stage | Contents |
 |-------|----------|
-| Discover | `scripts/sweep.py`: incremental LinkedIn + Indeed scan (resumable, cross-site dedup, filters senior roles, tags agencies). `scripts/boardsweep.py`: scans target employers' own job boards |
+| Discover | `scripts/sweep.py`: incremental LinkedIn + Indeed scan (resumable, cross-site dedup, filters senior roles, tags agencies). `scripts/boardsweep.py`: scans target employers' own job boards. **Every hit is tagged with its sponsor-register status**, e.g. `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`, so you see who can sponsor before you open the JD (`--no-sponsor` to turn off) |
 | Track | `sweep.py live`: checks every tracked posting across 9 channels (Greenhouse, Ashby, Lever, Workable, LinkedIn…) |
 | Screen | 5 gates: live / level fit / right to work / evidenced hard skills / direct vs agency |
 | Sponsorship | `scripts/sponsor_check.py`: gov.uk sponsor register lookup with trading-name aliases + JD sponsorship-wording scan |
@@ -69,7 +69,7 @@ python -m pip install --target vendor python-jobspy   # discovery only
 
 python sweep.py new 3 --plan     # show the query matrix, no network
 python sweep.py live --log       # liveness check for tracked jobs
-python sweep.py new 7            # new postings from the last 7 days
+python sweep.py new 7            # new postings from the last 7 days, each tagged with sponsor status
 python boardsweep.py --since 2026-01-01
 python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # stdlib only, no install
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md

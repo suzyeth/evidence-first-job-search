@@ -39,7 +39,7 @@
 
 | 环节 | 内容 |
 |------|------|
-| 找岗位 | `scripts/sweep.py`:LinkedIn + Indeed 增量扫描（断点续跑、跨站去重、过滤 Senior 岗和中介）；`scripts/boardsweep.py`:直接扫目标公司的官方招聘板 |
+| 找岗位 | `scripts/sweep.py`:LinkedIn + Indeed 增量扫描（断点续跑、跨站去重、过滤 Senior 岗和中介）；`scripts/boardsweep.py`:直接扫目标公司的官方招聘板。**扫出的每个岗位都自动标上担保状态**，如 `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`，打开 JD 之前就知道这家能不能办签证（`--no-sponsor` 关闭） |
 | 跟踪岗位 | `sweep.py live`:逐个检查你在跟的岗位还在不在，支持 Greenhouse、Ashby、Lever 等 9 种渠道 |
 | 筛选 | 5 道 Gate：岗位还在 / 级别对得上 / 有工作许可 / 硬技能有证据 / 是直招还是中介 |
 | 查签证担保 | `scripts/sponsor_check.py`:查 gov.uk 担保名册（含商号→法人名对照）+ 扫 JD 担保措辞 |
@@ -69,7 +69,7 @@ python -m pip install --target vendor python-jobspy       # 只有扫新岗需�
 
 python sweep.py new 3 --plan     # 先看要跑哪些搜索（不联网）
 python sweep.py live --log       # 检查在跟的岗位还在不在
-python sweep.py new 7            # 扫近 7 天的新岗
+python sweep.py new 7            # 扫近 7 天的新岗，每个岗位自动标担保状态
 python boardsweep.py --since 2026-01-01
 python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # 只用标准库，免安装
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md

@@ -112,6 +112,22 @@ def test_alias_resolves_common_word_ambiguity(register):
     assert [m.org.name for m in r.matches] == ["NOTHING TECHNOLOGY LIMITED"]
 
 
+def test_core_strips_web_domains():
+    assert sc.core_name("Checkout.com") == "checkout"
+    assert sc.core_name("paid.ai") == "paid"
+    assert sc.core_name("iwoca.co.uk") == "iwoca"
+
+
+def test_single_word_with_only_substring_hits_is_ambiguous(register):
+    # 'Monzo' only substring-matches 'Monzo Bank Limited' -> could be any 'Monzo …'; don't tick it
+    r = sc.lookup("Monzo", register)
+    assert r.status == "AMBIGUOUS"
+
+
+def test_single_word_exact_match_is_still_trusted(register):
+    assert sc.lookup("Anthropic", register).status == "SKILLED_WORKER"
+
+
 def test_other_route_only_is_not_reported_as_skilled_worker(register):
     r = sc.lookup("Sports Charity Trust", register)
     assert r.status == "OTHER_ROUTE_ONLY"

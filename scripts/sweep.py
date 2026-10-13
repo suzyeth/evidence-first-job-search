@@ -10,6 +10,7 @@
   python sweep.py linkedin 7 --resume       # 复用同日同参数已完成的任务(断点续跑)
   python sweep.py new 3 --plan              # 只打印任务矩阵,不联网
   python sweep.py new 7 --tracks GD,AI      # 只跑指定赛道
+  python sweep.py new 7 --no-sponsor        # 不给命中岗位标担保状态(默认会查 gov.uk 担保名册)
   其他参数:--sites linkedin,indeed  --timeout 90  --retries 1  --workers 3  --config <path>
 
 发现模式依赖 python-jobspy:
@@ -34,10 +35,14 @@ if os.path.isdir(VENDOR_DIR) and VENDOR_DIR not in sys.path:
 
 
 # ---- 配置加载 ----
+CONFIG_ENV = "SWEEP_CONFIG"
+
+
 def _config_path():
     if "--config" in sys.argv:
         return os.path.abspath(sys.argv[sys.argv.index("--config") + 1])
-    return os.path.join(SCRIPT_DIR, "sweep_config.json")
+    # 扫描子进程拿不到父进程的 --config,经环境变量传下去
+    return os.environ.get(CONFIG_ENV) or os.path.join(SCRIPT_DIR, "sweep_config.json")
 
 
 def _load_config():
@@ -206,6 +211,7 @@ def _run_task(task, hours, timeout, retries):
             try:
                 completed = subprocess.run(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    env={**os.environ, CONFIG_ENV: _config_path()},
                     text=True, encoding="utf-8", errors="replace", timeout=timeout
                 )
                 if completed.returncode != 0:
@@ -297,7 +303,7 @@ def discovery_plan(days, sites, queries):
 
 
 def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
-        plan=False, workers=3, queries=None, route_name="all"):
+        plan=False, workers=3, queries=None, route_name="all", sponsor=True):
     days = int(days)
     hours = days * 24
     sites = tuple(sites)
@@ -395,10 +401,13 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
             relevant.append(item)
     relevant.sort(key=lambda j: (not j["is_new"], j.get("tracks", [""])[0],
                                  _normal(j.get("company")), _normal(j.get("title"))))
+    sponsor_summary = _tag_sponsors(relevant, sponsor)
 
     print(f"\n覆盖率: {len(successes)}/{len(tasks)} = {coverage:.1f}% | 失败 {len(failures)}")
     print(f"原始 {raw_count} | 跨来源/重挂去重 {len(merged)} | 硬过滤 {excluded} | "
           f"contextual 留档 {len(contextual)} | 标题直达待核 {len(relevant)}")
+    if sponsor_summary:
+        print(sponsor_summary + "(✅ 在册有 SW 路线 · ❓ 名字常见待查 · ⚠️ 无 SW 路线 · ❌ 查无,先查法人名)")
     if failures:
         print("\n### 未完成任务")
         for r in failures:
@@ -421,9 +430,10 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
             printed.add(key)
             freshness = "NEW" if item["is_new"] else "SEEN"
             agency = " [中介·先问后投]" if item["agency"] else ""
+            tag = f" {item['sponsor']['display']}" if "sponsor" in item else ""
             sources = "+".join(item.get("sites", []))
             print(f"  * [{freshness}|{sources}] {item.get('title','')[:62]} || "
-                  f"{item.get('company','')[:30]}{agency} || {item.get('job_url','')[:100]}")
+                  f"{item.get('company','')[:30]}{agency}{tag} || {item.get('job_url','')[:100]}")
             shown += 1
             if shown >= 20:
                 print(f"  ... 另 {len(candidates) - shown} 条见 JSON 日志")
@@ -444,6 +454,41 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
     print("规则:LinkedIn/Indeed 只负责高召回发现；命中仍须过 5 道 Gate 并到雇主官网核活。")
     if coverage < 95:
         print("⚠️ 本轮覆盖率低于 95%，不得表述为‘全量日跑完成’；用 --resume 补失败任务。")
+
+
+AGENCY_SPONSOR_TAG = {"status": "AGENCY", "legal": "", "town": "", "label": "担保?",
+                      "display": "担保?(中介,雇主未知)"}
+SPONSOR_ORDER = ("✅", "❓", "⚠️", "❌", "?", "中介")
+
+
+def _sponsor_tagger(enabled):
+    """加载担保名册;失败只告警,绝不拖垮扫描本身。"""
+    if not enabled:
+        return None
+    try:
+        if SCRIPT_DIR not in sys.path:
+            sys.path.insert(0, SCRIPT_DIR)
+        import sponsor_check
+        return sponsor_check.SponsorTagger.load()
+    except Exception as exc:
+        print(f"⚠️ 担保名册加载失败({type(exc).__name__}: {exc}),本轮不标担保状态。")
+        return None
+
+
+def _tag_sponsors(items, enabled):
+    """给每个待核岗位挂 sponsor 字段,返回一行汇总;中介岗不查(公司名不是真雇主)。"""
+    if not items:
+        return ""
+    tagger = _sponsor_tagger(enabled)
+    if tagger is None:
+        return ""
+    counts = {}
+    for item in items:
+        tag = dict(AGENCY_SPONSOR_TAG) if item.get("agency") else dict(tagger.tag(item.get("company", "")))
+        item["sponsor"] = tag
+        key = "中介" if item.get("agency") else tag["label"].replace("担保", "")
+        counts[key] = counts.get(key, 0) + 1
+    return "担保:" + " · ".join(f"{k} {counts[k]}" for k in SPONSOR_ORDER if k in counts)
 
 
 def _parse_discovery_args(args, forced_sites=None):
@@ -477,23 +522,28 @@ def _filter_tracks(args, queries):
     return picked, ",".join(sorted(wanted))
 
 
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    cmd = argv[0] if argv else "live"
+    if cmd == "live":
+        live(log="--log" in argv)
+    elif cmd == "_query_worker":
+        _query_worker(argv[1], argv[2], argv[3], int(argv[4]), argv[5])
+    elif cmd in ("new", "linkedin"):
+        rest = argv[1:]
+        queries, route = _filter_tracks(rest, QUERIES)
+        forced_sites = ("linkedin",) if cmd == "linkedin" else None
+        sponsor = "--no-sponsor" not in rest
+        parsed = _parse_discovery_args(rest, forced_sites)
+        new(*parsed, queries=queries, route_name=f"{cmd}:{route}", sponsor=sponsor)
+    else:
+        print(__doc__)
+
+
 if __name__ == "__main__":
     # Windows 控制台默认编码遇到岗位名里的 ™ / emoji 会中断整轮扫描,强制 UTF-8 输出
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     except Exception:
         pass
-
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "live"
-    if cmd == "live":
-        live(log="--log" in sys.argv)
-    elif cmd == "_query_worker":
-        _query_worker(sys.argv[2], sys.argv[3], sys.argv[4], int(sys.argv[5]), sys.argv[6])
-    elif cmd in ("new", "linkedin"):
-        rest = sys.argv[2:]
-        queries, route = _filter_tracks(rest, QUERIES)
-        forced_sites = ("linkedin",) if cmd == "linkedin" else None
-        parsed = _parse_discovery_args(rest, forced_sites)
-        new(*parsed, queries=queries, route_name=f"{cmd}:{route}")
-    else:
-        print(__doc__)
+    main()
