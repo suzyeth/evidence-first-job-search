@@ -197,7 +197,7 @@ class Match:
 @dataclass
 class LookupResult:
     query: str
-    status: str = "NOT_FOUND"          # SKILLED_WORKER / OTHER_ROUTE_ONLY / POSSIBLE / NOT_FOUND
+    status: str = "NOT_FOUND"          # SKILLED_WORKER / OTHER_ROUTE_ONLY / AMBIGUOUS / POSSIBLE / NOT_FOUND
     matches: list = field(default_factory=list)
     total_hits: int = 0
     noisy: bool = False
@@ -244,10 +244,12 @@ def lookup(query: str, register: Register, aliases: dict | None = None) -> Looku
     result = LookupResult(query=query, companies_house_url=COMPANIES_HOUSE_SEARCH + quote_plus(query.strip()))
     found = _search(core_name(query), register)
     legal = _alias_for(query, aliases or {})
+    alias_pinned = False
     if legal:
         result.via_alias = legal
         alias_found = _search(core_name(legal), register)
-        if any(m.kind in ("exact", "squashed") for m in alias_found.values()):
+        alias_pinned = any(m.kind in ("exact", "squashed") for m in alias_found.values())
+        if alias_pinned:
             # 别名已经精确定位到法人,商号本身的子串/近似命中只是噪音
             found = {n: m for n, m in found.items() if m.kind == "exact"}
         for name, m in alias_found.items():
@@ -258,10 +260,15 @@ def lookup(query: str, register: Register, aliases: dict | None = None) -> Looku
                                                    m.org.name.lower()))
     result.matches, result.total_hits = ranked, len(ranked)
     core = core_name(query)
-    result.noisy = (len(core.split()) == 1 and core in COMMON_WORDS) or len(ranked) > NOISY_HIT_THRESHOLD
+    # 别名已精确定位法人时,常见词的噪音不再影响结论
+    result.noisy = not alias_pinned and (
+        (len(core.split()) == 1 and core in COMMON_WORDS) or len(ranked) > NOISY_HIT_THRESHOLD)
 
     strong = [m for m in ranked if m.kind != "similar"]
-    if strong:
+    if result.noisy and not legal and strong:
+        # 常见词的子串命中多半是同名无关公司,不能据此给出"有牌照"的结论
+        result.status = "AMBIGUOUS"
+    elif strong:
         result.status = ("SKILLED_WORKER" if any(SKILLED_WORKER in m.org.routes for m in strong)
                          else "OTHER_ROUTE_ONLY")
     elif ranked:
@@ -310,6 +317,7 @@ def scan_jd(text: str) -> list[JdHit]:
 STATUS_TEXT = {
     "SKILLED_WORKER": "✅ 在册,有 Skilled Worker 路线",
     "OTHER_ROUTE_ONLY": "⚠️ 在册,但没有 Skilled Worker 路线",
+    "AMBIGUOUS": "❓ 名字太常见,下面的命中可能都是同名的无关公司,无法判断",
     "POSSIBLE": "❓ 只有近似匹配,请人工确认是不是同一家",
     "NOT_FOUND": "❌ 名册查无",
 }

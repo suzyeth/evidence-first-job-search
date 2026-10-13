@@ -10,7 +10,7 @@
 
 ## 只想查签证担保？3 步上手
 
-![sponsor_check.py 演示：Bumble 查到法人 Badoo Limited，Spotlight Sports 查到连写的 Spotlightsportsgroup，JD 被识别为不担保](docs/demo-sponsor-check.png)
+![sponsor_check.py 演示：Bumble 查到法人 Badoo Limited，Spotlight Sports 查到连写的 Spotlightsportsgroup，常见词 "Linear" 被标为无法判断，JD 被识别为不担保](docs/demo-sponsor-check.png)
 
 不用会 git，不用 AI 工具，也不用装任何依赖。只需要装好 [Python 3.10 以上版本](https://www.python.org/downloads/)（Windows 安装时记得勾选 "Add python.exe to PATH"）。
 

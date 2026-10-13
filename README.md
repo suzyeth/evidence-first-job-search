@@ -10,7 +10,7 @@ It works with any assistant. Claude Code, Codex, Cursor and Gemini CLI can read 
 
 ## Just want to check visa sponsorship? 3 steps
 
-![sponsor_check.py demo: Bumble resolves to Badoo Limited, Spotlight Sports to Spotlightsportsgroup, and a JD flagged as not sponsoring](docs/demo-sponsor-check.png)
+![sponsor_check.py demo: Bumble resolves to Badoo Limited, Spotlight Sports to Spotlightsportsgroup, the common word "Linear" is flagged as ambiguous, and a JD is flagged as not sponsoring](docs/demo-sponsor-check.png)
 
 No git, no AI tool, no packages. You only need [Python 3.10+](https://www.python.org/downloads/) (on Windows, tick "Add python.exe to PATH" during install).
 

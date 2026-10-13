@@ -98,6 +98,20 @@ def test_common_word_name_is_flagged_noisy(register):
     assert r.noisy is True
 
 
+def test_common_word_without_alias_is_ambiguous_not_a_green_tick(register):
+    # substring hits on a common word must not produce a confident "Skilled Worker" verdict
+    r = sc.lookup("Nothing", register)
+    assert r.status == "AMBIGUOUS"
+    assert "❓" in sc.render(r)
+
+
+def test_alias_resolves_common_word_ambiguity(register):
+    r = sc.lookup("Nothing", register, aliases={"Nothing": "NOTHING TECHNOLOGY LIMITED"})
+    assert r.status == "SKILLED_WORKER"
+    assert r.noisy is False   # no "unreliable" warning once the alias pins the legal entity
+    assert [m.org.name for m in r.matches] == ["NOTHING TECHNOLOGY LIMITED"]
+
+
 def test_other_route_only_is_not_reported_as_skilled_worker(register):
     r = sc.lookup("Sports Charity Trust", register)
     assert r.status == "OTHER_ROUTE_ONLY"
