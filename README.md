@@ -8,6 +8,24 @@ An AI-assisted job-search workflow where **every claim needs evidence**: every C
 
 It works with any assistant. Claude Code, Codex, Cursor and Gemini CLI can read the files directly; with a chat assistant (ChatGPT, Claude, Gemini…) you paste in the relevant files.
 
+## Just want to check visa sponsorship? 3 steps
+
+![sponsor_check.py demo: Bumble resolves to Badoo Limited, Spotlight Sports to Spotlightsportsgroup, and a JD flagged as not sponsoring](docs/demo-sponsor-check.png)
+
+No git, no AI tool, no packages. You only need [Python 3.10+](https://www.python.org/downloads/) (on Windows, tick "Add python.exe to PATH" during install).
+
+1. On this page click the green **Code** button → **Download ZIP**, then unzip it.
+2. Open a terminal in the unzipped folder's `scripts` directory (Windows: open the folder, type `cmd` in the address bar, press Enter).
+3. Run it with the companies you want to check:
+
+   ```bash
+   python sponsor_check.py "Bumble" "Monzo" "Wise"
+   ```
+
+   On Windows, use `py` if `python` isn't found; on macOS, use `python3`. The first run downloads today's register (about 10 MB, ~10 s); after that it's cached for a day. Add `--jd JD.txt` to also scan a saved job description for sponsorship wording.
+
+Can't find a company? It may be registered under a different legal name. The output links to Companies House so you can look it up, and you can [report it here](https://github.com/suzyeth/evidence-first-job-search/issues/new?template=sponsor-alias.yml) so it gets added to the alias table.
+
 ## Why
 
 Most AI job-search tools assume the US market. This one handles the UK-specific parts:

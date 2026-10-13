@@ -8,6 +8,24 @@
 
 不绑定某一个 AI：Claude Code、Codex、Cursor、Gemini CLI 都能直接读；只用 ChatGPT / DeepSeek 之类的聊天 AI 也可以，把对应的文件贴进去就行。
 
+## 只想查签证担保？3 步上手
+
+![sponsor_check.py 演示：Bumble 查到法人 Badoo Limited，Spotlight Sports 查到连写的 Spotlightsportsgroup，JD 被识别为不担保](docs/demo-sponsor-check.png)
+
+不用会 git，不用 AI 工具，也不用装任何依赖。只需要装好 [Python 3.10 以上版本](https://www.python.org/downloads/)（Windows 安装时记得勾选 "Add python.exe to PATH"）。
+
+1. 在本页点绿色的 **Code** 按钮 → **Download ZIP**，下载后解压。
+2. 进入解压出来的文件夹里的 `scripts` 目录，在这里打开命令行（Windows：打开这个文件夹，在地址栏输入 `cmd` 回车）。
+3. 输入要查的公司名，运行：
+
+   ```bash
+   python sponsor_check.py "Bumble" "Monzo" "Wise"
+   ```
+
+   Windows 上提示找不到 `python` 的话，把 `python` 换成 `py`；Mac 上用 `python3`。第一次运行会自动下载当天的名册（约 10 MB，十秒左右），之后一天内直接用缓存。把 JD 存成文本文件，加上 `--jd JD.txt`，还能顺便扫描 JD 里写的是愿意担保还是不担保。
+
+查不到某家公司？它可能是用另一个法人名登记的。结果里会给出 Companies House 的链接，方便你反查法人名；也欢迎[在这里提交](https://github.com/suzyeth/evidence-first-job-search/issues/new?template=sponsor-alias.yml)，我核实后加进对照表。
+
 ## 为什么做这个
 
 市面上的 AI 求职工具大多默认美国市场，英国求职特有的坑基本没人管：

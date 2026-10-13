@@ -1,0 +1,35 @@
+name: 名册里查不到的公司 / Company missing from sponsor lookup
+description: sponsor_check.py 查不到、但你认为这家公司有担保牌照 / The script can't find a company you believe holds a sponsor licence
+title: "[alias] <公司名 / company name>"
+labels: ["sponsor-alias"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢提交！核实后会把「商号 → 法人名」加进 `scripts/sponsor_aliases.json`。
+        Thanks! Once verified, the trading name → legal name mapping goes into `scripts/sponsor_aliases.json`.
+
+        ⚠️ 请不要填写个人信息（签证状态、姓名、联系方式）。 Please don't include personal details (visa status, name, contact info).
+  - type: input
+    id: trading_name
+    attributes:
+      label: 你搜的公司名 / Name you searched
+      placeholder: "Bumble"
+    validations:
+      required: true
+  - type: input
+    id: legal_name
+    attributes:
+      label: 英国法人名（知道的话）/ UK legal entity name (if known)
+      description: 可在 Companies House 查到 / Find it on Companies House
+      placeholder: "Badoo Limited"
+  - type: input
+    id: source
+    attributes:
+      label: 依据链接 / Evidence link
+      description: Companies House 页面、公司官网页脚、或名册里对应的那一行 / Companies House page, company website footer, or the register row
+  - type: textarea
+    id: output
+    attributes:
+      label: 脚本输出（可选）/ Script output (optional)
+      render: text
