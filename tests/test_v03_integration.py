@@ -69,7 +69,7 @@ def test_boardsweep_main_prints_jd_flags_and_uses_company_name(monkeypatch, tmp_
     assert bs.main(["--config", cfg]) == 0
     out = capsys.readouterr().out
     assert fake.seen == ["Acme Ltd"]                      # real company name beats the slug
-    assert "[JD:JD❌不担保·正文Senior·要5年+·£30k<£33.4k下限]" in out
+    assert "[JD:❌不担保·正文Senior·要5年+·£30k<£33.4k下限]" in out
     assert "JD 体检:❌不担保 1" in out
     assert bs.main(["--config", cfg, "--no-jd", "--no-sponsor"]) == 0
     assert "[JD:" not in capsys.readouterr().out

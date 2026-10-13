@@ -40,7 +40,7 @@ Most AI job-search tools assume the US market. This one handles the UK-specific 
 | Stage | Contents |
 |-------|----------|
 | Discover | `scripts/sweep.py`: incremental LinkedIn + Indeed scan (resumable, cross-site dedup, filters senior roles, tags agencies). `scripts/boardsweep.py`: scans target employers' own job boards. **Every hit is tagged with its sponsor-register status**, e.g. `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`, so you see who can sponsor before you open the JD (`--no-sponsor` to turn off) |
-| Track | `sweep.py live`: checks every tracked posting across 9 channels (Greenhouse, Ashby, Lever, Workable, LinkedIn…) |
+| Track | `sweep.py add <job URL>`: paste a Greenhouse / Ashby / Lever / Workable / Teamtailor / BambooHR / LinkedIn link; it detects the ATS and job id, confirms the job is live, and adds it to your tracked list with a readable label. `sweep.py live` then checks every tracked posting across 9 channels |
 | Screen | 5 gates: live / level fit / right to work / evidenced hard skills / direct vs agency |
 | Sponsorship | `scripts/sponsor_check.py`: gov.uk sponsor register lookup with trading-name aliases + JD sponsorship-wording scan. `--add-alias "Brand" "Legal Name Ltd"` adds a mapping after checking the legal name is really on the register |
 | JD check | `scripts/jd_check.py`, also run automatically by `boardsweep.py` on every hit's full JD: flags "no sponsorship" wording, SC/DV security clearance, seniority hidden in the body ("We're looking for a Senior…"), years of experience above your limit, and salary below the Skilled Worker thresholds (£41,700 standard / £33,400 reduced floor, checked against gov.uk on 2026-10-13; occupation going rates can be higher) |
@@ -69,6 +69,7 @@ cp boardsweep_config.example.json boardsweep_config.json
 python -m pip install --target vendor python-jobspy   # discovery only
 
 python sweep.py new 3 --plan     # show the query matrix, no network
+python sweep.py add https://jobs.ashbyhq.com/<company>/<job-id>   # start tracking a job
 python sweep.py live --log       # liveness check for tracked jobs
 python sweep.py new 7            # new postings from the last 7 days, each tagged with sponsor status
 python boardsweep.py --since 2026-01-01   # + sponsor tag and JD check on every hit

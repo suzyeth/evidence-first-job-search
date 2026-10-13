@@ -215,7 +215,8 @@ def main(argv: list[str] | None = None) -> int:
         print(_jd_summary(jd_tags.values()))
     for h in unique:
         tag = f" {sponsor_tags[_company_key(h)]}" if _company_key(h) in sponsor_tags else ""
-        jd = f" [JD:{'·'.join(jd_tags[h])}]" if jd_tags.get(h) else ""
+        # 方括号已标明是 JD,标签自带的 "JD" 前缀去掉,避免显示成 [JD:JD❌…]
+        jd = f" [JD:{'·'.join(t.removeprefix('JD') for t in jd_tags[h])}]" if jd_tags.get(h) else ""
         print(f"  {h.date:<10} [{h.kind}:{h.slug}]{tag}{jd} {h.title[:52]:<52} | {h.location:<34} | {h.url[:78]}")
     return 0
 

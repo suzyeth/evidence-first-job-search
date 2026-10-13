@@ -11,6 +11,7 @@
   python sweep.py new 3 --plan              # 只打印任务矩阵,不联网
   python sweep.py new 7 --tracks GD,AI      # 只跑指定赛道
   python sweep.py new 7 --no-sponsor        # 不给命中岗位标担保状态(默认会查 gov.uk 担保名册)
+  python sweep.py add <岗位链接> [--label 标签] [--force]   # 确认在架后加进 tracked(自动识别 ATS 和 id)
   其他参数:--sites linkedin,indeed  --timeout 90  --retries 1  --workers 3  --config <path>
 
 发现模式依赖 python-jobspy:
@@ -522,9 +523,133 @@ def _filter_tracks(args, queries):
     return picked, ",".join(sorted(wanted))
 
 
+# ---------------------------------------------------------------- add <job URL>
+
+_URL_PATTERNS = [
+    ("greenhouse", re.compile(r"greenhouse\.io/([\w.-]+)/jobs/(\d+)", re.I)),
+    ("ashby_id", re.compile(r"jobs\.ashbyhq\.com/([\w.%-]+)/([0-9a-f-]{36})", re.I)),
+    ("lever", re.compile(r"jobs\.(?:eu\.)?lever\.co/([\w.-]+)/([0-9a-f-]{36})", re.I)),
+    ("workable", re.compile(r"apply\.workable\.com/([\w.-]+)/j/([0-9A-Z]+)", re.I)),
+    ("teamtailor", re.compile(r"//([\w-]+)\.teamtailor\.com/jobs/([\w-]+)", re.I)),
+    ("bamboohr", re.compile(r"//([\w-]+)\.bamboohr\.com/careers/(\d+)", re.I)),
+    ("hitmarker", re.compile(r"hitmarker\.net/jobs/([\w-]+)", re.I)),
+]
+_LINKEDIN_ID = re.compile(r"linkedin\.com/jobs/view/(?:[\w%-]*?-)?(\d{7,})|[?&]currentJobId=(\d{7,})", re.I)
+SUPPORTED_HOSTS = "Greenhouse / Ashby / Lever / Workable / Teamtailor / BambooHR / Hitmarker / LinkedIn"
+
+
+def parse_job_url(url):
+    """岗位链接 -> (渠道, 参数),参数格式与 sweep_config.json 的 tracked 一致。"""
+    if "gh_jid=" in url:
+        raise ValueError("这是公司官网嵌的 Greenhouse 岗位,链接里看不出是哪个 Greenhouse 板。"
+                         "在页面上点 Apply 或查看源码,找 boards.greenhouse.io/<板名>/jobs/<id> 那个链接再加。")
+    m = _LINKEDIN_ID.search(url)
+    if m:
+        return "linkedin", m.group(1) or m.group(2)
+    for channel, pattern in _URL_PATTERNS:
+        m = pattern.search(url)
+        if m:
+            if channel == "hitmarker":
+                return channel, m.group(1)
+            first, second = m.group(1), m.group(2)
+            return channel, [first, int(second) if channel == "greenhouse" else second]
+    raise ValueError(f"不认识这个链接。支持:{SUPPORTED_HOSTS}。"
+                     "公司自建招聘页请找它背后的 ATS 链接(通常在 Apply 按钮上)。")
+
+
+def _html_title(page):
+    m = re.search(r"<title[^>]*>(.*?)</title>", page, re.I | re.S)
+    title = re.sub(r"\s+", " ", m.group(1)).strip() if m else ""
+    return re.sub(r"\s*\|\s*LinkedIn\s*$", "", title)
+
+
+def describe_job(channel, args):
+    """取岗位标题和公司名做标签;取不到返回空串,不影响添加。"""
+    try:
+        if channel == "greenhouse":
+            d = json.loads(fetch(f"https://boards-api.greenhouse.io/v1/boards/{args[0]}/jobs/{args[1]}"))
+            return d.get("title", ""), d.get("company_name", "")
+        if channel in ("ashby_id", "ashby_title"):
+            d = json.loads(fetch(f"https://api.ashbyhq.com/posting-api/job-board/{args[0]}"))
+            job = next((j for j in d.get("jobs", []) if args[1] in (j.get("id"), j.get("title"))), {})
+            return job.get("title", ""), args[0]
+        if channel == "lever":
+            d = json.loads(fetch(f"https://api.lever.co/v0/postings/{args[0]}/{args[1]}?mode=json"))
+            return d.get("text", ""), args[0]
+        if channel == "workable":
+            d = json.loads(fetch(f"https://apply.workable.com/api/v1/widget/accounts/{args[0]}?details=true"))
+            job = next((j for j in d.get("jobs", []) if j.get("shortcode") == args[1]), {})
+            return job.get("title", ""), d.get("name", "")
+        if channel == "bamboohr":
+            d = json.loads(fetch(f"https://{args[0]}.bamboohr.com/careers/list"))
+            job = next((j for j in d.get("result", []) if str(j.get("id")) == str(args[1])), {})
+            return job.get("jobOpeningName", ""), args[0]
+        page_url = {"linkedin": f"https://www.linkedin.com/jobs/view/{args}",
+                    "teamtailor": f"https://{args[0]}.teamtailor.com/jobs/{args[1]}" if isinstance(args, list) else "",
+                    "hitmarker": f"https://hitmarker.net/jobs/{args}"}.get(channel, "")
+        return (_html_title(fetch(page_url)), "") if page_url else ("", "")
+    except Exception:
+        return "", ""
+
+
+def _is_live(channel, args):
+    if channel == "linkedin":
+        return "No longer accepting applications" not in fetch(f"https://www.linkedin.com/jobs/view/{args}")
+    return _check(channel, tuple(args) if isinstance(args, list) else args)
+
+
+def _same(entry, channel, args):
+    return entry.get("channel") == channel and entry.get("args") == args
+
+
+def add_job(url, config_path, label=None, force=False):
+    """确认岗位在架后追加进 sweep_config.json 的 tracked。"""
+    try:
+        channel, args = parse_job_url(url)
+    except ValueError as exc:
+        print(f"❌ {exc}")
+        return 1
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    entries = config.get("tracked", [])
+    if any(_same(e, channel, args) for e in entries):
+        print(f"已经在跟踪了:{channel} {args}")
+        return 0
+    try:
+        alive = _is_live(channel, args)
+    except Exception as exc:
+        print(f"❌ 没法确认这个岗位还在不在({type(exc).__name__})。检查网络或链接后重试;确定要加就用 --force。")
+        return 1
+    if not alive and not force:
+        print("❌ 这个岗位已下架(雇主板上找不到),没有加入。确定要加(比如等它重挂)就用 --force。")
+        return 1
+    title, company = describe_job(channel, args)
+    if channel == "ashby_id" and title:
+        # 按标题跟踪:同一个 req 改题升格(Senior -> Lead)时能立刻判死,按 id 跟踪抓不到
+        channel, args = "ashby_title", [args[0], title]
+        if any(_same(e, channel, args) for e in entries):
+            print(f"已经在跟踪了:{channel} {args}")
+            return 0
+    entry = {"label": label or " · ".join(p for p in (company, title) if p) or url,
+             "channel": channel, "args": args}
+    updated = {**config, "tracked": [*entries, entry]}
+    with open(config_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(updated, ensure_ascii=False, indent=2) + "\n")
+    print(f"✅ 已加入跟踪:{entry['label']}  [{channel}]" + ("" if alive else "(当前不在架,按 --force 加入)"))
+    if channel == "linkedin":
+        print("⚠️ 这是 LinkedIn 镜像:镜像还在 ≠ 岗位还在。最好找到雇主自己的招聘页链接,改用它来跟踪。")
+    return 0
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     cmd = argv[0] if argv else "live"
+    if cmd == "add":
+        if len(argv) < 2 or argv[1].startswith("--"):
+            print("用法:python sweep.py add <岗位链接> [--label 标签] [--force]")
+            return 2
+        label = argv[argv.index("--label") + 1] if "--label" in argv else None
+        return add_job(argv[1], _config_path(), label=label, force="--force" in argv)
     if cmd == "live":
         live(log="--log" in argv)
     elif cmd == "_query_worker":
@@ -546,4 +671,6 @@ if __name__ == "__main__":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     except Exception:
         pass
-    main()
+    exit_code = main()
+    if exit_code:
+        sys.exit(exit_code)

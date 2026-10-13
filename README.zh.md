@@ -40,7 +40,7 @@
 | 环节 | 内容 |
 |------|------|
 | 找岗位 | `scripts/sweep.py`:LinkedIn + Indeed 增量扫描（断点续跑、跨站去重、过滤 Senior 岗和中介）；`scripts/boardsweep.py`:直接扫目标公司的官方招聘板。**扫出的每个岗位都自动标上担保状态**，如 `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`，打开 JD 之前就知道这家能不能办签证（`--no-sponsor` 关闭） |
-| 跟踪岗位 | `sweep.py live`:逐个检查你在跟的岗位还在不在，支持 Greenhouse、Ashby、Lever 等 9 种渠道 |
+| 跟踪岗位 | `sweep.py add <岗位链接>`:贴 Greenhouse / Ashby / Lever / Workable / Teamtailor / BambooHR / LinkedIn 的链接，自动识别渠道和岗位 ID、确认还在招，再加进跟踪列表，标签自动生成。之后 `sweep.py live` 逐个检查这些岗位还在不在，支持 9 种渠道 |
 | 筛选 | 5 道 Gate：岗位还在 / 级别对得上 / 有工作许可 / 硬技能有证据 / 是直招还是中介 |
 | 查签证担保 | `scripts/sponsor_check.py`:查 gov.uk 担保名册（含商号→法人名对照）+ 扫 JD 担保措辞。`--add-alias "商号" "法人名"` 先核实法人名确实在名册里，再写进对照表 |
 | JD 体检 | `scripts/jd_check.py`,`boardsweep.py` 会对每个命中岗位的 JD 全文自动跑一遍：标出写明不担保、要求 SC/DV 安全审查、正文里藏着的 Senior（"We're looking for a Senior…"）、年限要求超过你设的上限、薪资低于 Skilled Worker 门槛（标准 £41,700 / 降低标准下限 £33,400,2026-10-13 核对 gov.uk;按职业代码的 going rate 可能更高） |
@@ -69,6 +69,7 @@ cp boardsweep_config.example.json boardsweep_config.json  # 填目标公司的�
 python -m pip install --target vendor python-jobspy       # 只有扫新岗需要
 
 python sweep.py new 3 --plan     # 先看要跑哪些搜索（不联网）
+python sweep.py add https://jobs.ashbyhq.com/<公司>/<岗位ID>   # 开始跟踪一个岗位
 python sweep.py live --log       # 检查在跟的岗位还在不在
 python sweep.py new 7            # 扫近 7 天的新岗，每个岗位自动标担保状态
 python boardsweep.py --since 2026-01-01   # 每个岗位自动标担保状态 + JD 体检
