@@ -263,7 +263,8 @@ def lookup(query: str, register: Register, aliases: dict | None = None, fuzzy: b
     core = core_name(query)
     # 别名已精确定位法人时,常见词的噪音不再影响结论
     single_word = len(core.split()) == 1
-    only_substring = not any(m.kind in ("exact", "squashed") for m in ranked)
+    # 有命中、但全是子串命中才算;完全查无是 NOT_FOUND,不是"名字太常见"
+    only_substring = bool(ranked) and not any(m.kind in ("exact", "squashed") for m in ranked)
     # 单个词只有子串命中时(Faculty -> 某医学院学部),多半是撞名,同样不能下结论
     result.noisy = not alias_pinned and (
         (single_word and (core in COMMON_WORDS or only_substring)) or len(ranked) > NOISY_HIT_THRESHOLD)
@@ -439,6 +440,85 @@ def add_alias(trading: str, legal: str, register: Register, aliases_path: str) -
     return 0
 
 
+# ---------------------------------------------------------------- --watch
+
+DEFAULT_WATCH_STATE = os.path.join(SCRIPT_DIR, "state", "sponsor-watch.json")
+
+
+def _snapshot(result: LookupResult) -> dict | None:
+    """记录这家公司在名册里的法人、评级、路线;名字太常见(可能是同名无关公司)就不监控。"""
+    if result.noisy:
+        return None
+    strong = [m for m in result.matches if m.kind != "similar"]
+    if result.via_alias:
+        # 有别名就只盯别名指向的法人:"Cursor" 还会精确命中 Lincoln 一家无关的 Cursor Ltd
+        alias_core = core_name(result.via_alias)
+        strong = [m for m in strong
+                  if core_name(m.org.name) == alias_core     # 别名本身带 t/a 时整串比
+                  or any(core_name(p) == alias_core for p in split_trading_as(m.org.name))]
+    orgs = {m.org.name: {"rating": m.org.rating, "routes": sorted(m.org.routes), "town": m.org.town} for m in strong}
+    return {"status": result.status, "orgs": orgs}
+
+
+def _changes(query: str, old: dict, new: dict) -> list[str]:
+    out = []
+    for name, before in old["orgs"].items():
+        after = new["orgs"].get(name)
+        if after is None:
+            out.append(f"🔴 {query}:{name} 已从名册消失")
+            continue
+        if before["rating"] != after["rating"]:
+            out.append(f"🟠 {query}:{name} 评级 {before['rating']} → {after['rating']}")
+        had, has = SKILLED_WORKER in before["routes"], SKILLED_WORKER in after["routes"]
+        if had and not has:
+            out.append(f"🟠 {query}:{name} 失去 Skilled Worker 路线")
+        elif has and not had:
+            out.append(f"🟢 {query}:{name} 新增 Skilled Worker 路线")
+    if not old["orgs"]:
+        for name, org in new["orgs"].items():
+            out.append(f"🟢 {query}:现在在名册上了({name} · {org['town']} · {org['rating']} 级)")
+    return out
+
+
+def watch(names: list[str], register: Register, aliases: dict, state_path: str, register_name: str) -> int:
+    """和上次记下的基线对比:掉出名册 / 评级变化 / 失去或新增 SW 路线 / 新入册。"""
+    previous = {}
+    if os.path.exists(state_path):
+        with open(state_path, "r", encoding="utf-8") as f:
+            previous = json.load(f)
+    old_companies = previous.get("companies", {})
+    first_run = not previous
+    current, lines, changed = {}, [], 0
+    for name in names:
+        snap = _snapshot(lookup(name, register, aliases, fuzzy=False))
+        if snap is None:
+            lines.append(f"⚠️ {name}:名字太常见,无法确定是哪家,不纳入监控。先用 --add-alias 固定法人名。")
+            continue
+        current[name] = snap
+        if first_run:
+            orgs = ", ".join(f"{o} ({v['rating']} 级)" for o, v in snap["orgs"].items()) or "名册查无"
+            lines.append(f"   {name}:{orgs}")
+        elif name not in old_companies:
+            lines.append(f"🆕 {name}:新加入监控")
+        else:
+            diff = _changes(name, old_companies[name], snap)
+            changed += bool(diff)
+            lines += diff or [f"   {name}:无变化"]
+    os.makedirs(os.path.dirname(os.path.abspath(state_path)), exist_ok=True)
+    state = {"register": register_name, "checked": time.strftime("%Y-%m-%d"), "companies": current}
+    with open(state_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(state, ensure_ascii=False, indent=2) + "\n")
+    if first_run:
+        print(f"建立基线:{len(current)} 家公司,名册 {register_name}。下次运行会报告变化。")
+    else:
+        print(f"对比基线(上次 {previous.get('checked', '?')} · {previous.get('register', '?')} → 本次 {register_name})")
+    print("\n".join(lines))
+    watched = sum(1 for n in current if n in old_companies)
+    if not first_run:
+        print(f"\n{watched} 家里 {changed} 家有变化。" if changed else f"\n{watched} 家都没有变化。")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="英国签证担保名册核查 + JD 担保措辞扫描")
     p.add_argument("companies", nargs="*", help="公司名(商号或法人名均可)")
@@ -450,6 +530,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--aliases", default=DEFAULT_ALIASES, help="商号 → 法人名 别名文件")
     p.add_argument("--all-routes", action="store_true", help="显示全部签证路线")
     p.add_argument("--json", action="store_true", help="输出 JSON")
+    p.add_argument("--watch", action="store_true",
+                   help="监控这些公司:第一次记基线,之后报告掉出名册 / 评级变化 / 失去 SW 路线 / 新入册")
+    p.add_argument("--state", default=DEFAULT_WATCH_STATE, help="--watch 的基线文件")
     p.add_argument("--add-alias", nargs=2, metavar=("商号", "法人名"),
                    help="核实法人名在名册里后,把「商号 → 法人名」写进别名文件")
     args = p.parse_args(argv)
@@ -469,6 +552,18 @@ def main(argv: list[str] | None = None) -> int:
     if not names and not args.jd:
         p.print_help()
         return 2
+
+    if args.watch:
+        if not names:
+            print("--watch 需要公司名(直接写在命令里,或用 --file)。")
+            return 2
+        try:
+            path = args.register or ensure_register(args.max_age, args.refresh)
+            register = load_register(path)
+        except (RegisterError, OSError) as exc:
+            print(f"❌ {exc}", file=sys.stderr)
+            return 1
+        return watch(names, register, load_aliases(args.aliases), args.state, os.path.basename(path))
 
     output: dict = {"companies": [], "jd": {}}
     if names:

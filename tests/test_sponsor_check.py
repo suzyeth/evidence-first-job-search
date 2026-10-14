@@ -124,6 +124,13 @@ def test_single_word_with_only_substring_hits_is_ambiguous(register):
     assert r.status == "AMBIGUOUS"
 
 
+def test_single_word_with_no_hits_is_not_found_not_noisy(register):
+    # a missing single-word company must read as "not found", never as "name too common"
+    r = sc.lookup("Zzyzxco", register)
+    assert r.status == "NOT_FOUND" and r.noisy is False
+    assert "常见词" not in sc.render(r)
+
+
 def test_single_word_exact_match_is_still_trusted(register):
     assert sc.lookup("Anthropic", register).status == "SKILLED_WORKER"
 
