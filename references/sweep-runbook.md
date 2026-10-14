@@ -60,7 +60,8 @@ LinkedIn 换 ID 重挂很常见:旧 ID 判死后,先按标题+公司再搜一次
    - 商号是常见英文词(Nothing / Linear / Notion…)→ 子串 grep 被噪音淹没,必须先拿法人名
 3. 仍查不到 → Companies House 公开搜索 `find-and-update.company-information.service.gov.uk/search/companies?q=` 拿英国法人名再回查;撞名多的看 officers 确认是同一家。
 4. Companies House 直接 No results = 英国无实体,可判死。实体成立 < 1 年多半还没取牌,但不绝对 —— 值得首轮问一句。
-5. **名册命中 ≠ 这个岗会担保。** 还要全文扫 JD 的 sponsor / right to work / authorisation。两道都过才算数。
+5. **持续监控**:`sponsor_check.py --watch <公司…>` 第一次记基线,之后每次报告掉出名册 / 评级变化 / 失去 Skilled Worker 路线 / 新入册。适合在建包前和投递前各跑一次,或放进每周定时任务。
+6. **名册命中 ≠ 这个岗会担保。** 还要全文扫 JD 的 sponsor / right to work / authorisation。两道都过才算数。
 
 ## 节奏
 

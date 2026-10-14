@@ -1,7 +1,23 @@
 {
-  "_readme": "复制为 boardsweep_config.json。ashby / greenhouse 填公司的 ATS slug(不一定等于品牌名)。",
-  "ashby": ["cursor", "elevenlabs", "synthesia", "openai", "cohere"],
-  "greenhouse": ["anthropic", "monzo", "stripe", "databricks", "intercom", "figma"],
+  "_readme": "复制为 boardsweep_config.json。ashby / greenhouse / lever / workable / teamtailor 各填公司的招聘板 slug(不一定等于品牌名):jobs.lever.co/<slug>、apply.workable.com/<slug>、<slug>.teamtailor.com。",
+  "ashby": [
+    "cursor",
+    "elevenlabs",
+    "synthesia",
+    "openai",
+    "cohere"
+  ],
+  "greenhouse": [
+    "anthropic",
+    "monzo",
+    "stripe",
+    "databricks",
+    "intercom",
+    "figma"
+  ],
+  "lever": [],
+  "workable": [],
+  "teamtailor": [],
   "want_title_regex": "forward[- ]deployed|applied ai|ai engineer|prompt engineer|solutions? engineer|game (designer|econom|analyst)|live ?ops|technical designer|(product|data|business) analyst",
   "senior_title_regex": "\\b(senior|sr\\.?|lead|principal|staff|head of|director|vp|chief|manager|architect|distinguished|fellow|rvp|svp|evp)\\b",
   "max_years": 3,

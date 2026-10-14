@@ -24,6 +24,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 from sponsor_check import scan_jd  # noqa: E402  (same folder)
+from i18n import apply_lang_arg, tr  # noqa: E402
 
 STANDARD_THRESHOLD = 41_700   # Skilled Worker 'standard' salary
 FLOOR_THRESHOLD = 33_400      # lowest of the reduced rates (e.g. new entrants), non-health/education
@@ -132,35 +133,47 @@ def _k(value: int) -> str:
 
 def tags(report: JdReport, max_years: int = 3) -> list[str]:
     out = []
-    out += {"negative": ["JD❌不担保"], "positive": ["JD✅可担保"], "check": ["JD⚠️需工作许可"]}.get(report.sponsor, [])
+    out += {"negative": [tr("JD❌不担保", "JD❌no sponsorship")],
+            "positive": [tr("JD✅可担保", "JD✅sponsorship offered")],
+            "check": [tr("JD⚠️需工作许可", "JD⚠️right to work needed")]}.get(report.sponsor, [])
     if report.clearance:
-        out.append("JD⚠️要安全审查(SC/DV)")
+        out.append(tr("JD⚠️要安全审查(SC/DV)", "JD⚠️SC/DV clearance"))
     if report.senior:
-        out.append("正文Senior")
+        out.append(tr("正文Senior", "senior in body"))
     if report.years is not None and report.years > max_years:
-        out.append(f"要{report.years}年+")
+        out.append(tr(f"要{report.years}年+", f"needs {report.years}+ yrs"))
     if report.salary_flag == "below_standard":
-        out.append(f"£{_k(report.salary_low)}<£{_k(STANDARD_THRESHOLD)}标准")
+        out.append(f"£{_k(report.salary_low)}<£{_k(STANDARD_THRESHOLD)}" + tr("标准", " standard"))
     elif report.salary_flag == "below_floor":
-        out.append(f"£{_k(report.salary_low)}<£{_k(FLOOR_THRESHOLD)}下限")
+        out.append(f"£{_k(report.salary_low)}<£{_k(FLOOR_THRESHOLD)}" + tr("下限", " floor"))
     return out
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="JD 体检:担保措辞 / 隐藏 Senior / 年限 / 年薪 vs 签证门槛")
-    p.add_argument("files", nargs="+", help="JD 文本或 markdown 文件")
-    p.add_argument("--max-years", type=int, default=3, help="超过这个年限就标出来(默认 3)")
+    argv = apply_lang_arg(list(sys.argv[1:] if argv is None else argv))
+    p = argparse.ArgumentParser(description=tr("JD 体检:担保措辞 / 隐藏 Senior / 年限 / 年薪 vs 签证门槛",
+                                               "JD check: sponsorship wording / hidden seniority / years / "
+                                               "salary vs visa thresholds"))
+    p.add_argument("files", nargs="+", help=tr("JD 文本或 markdown 文件", "JD text or markdown files"))
+    p.add_argument("--max-years", type=int, default=3,
+                   help=tr("超过这个年限就标出来(默认 3)", "flag requirements above this many years (default 3)"))
+    p.add_argument("--lang", choices=("zh", "en"), help=tr("输出语言", "output language"))
     args = p.parse_args(argv)
     for path in args.files:
         with open(path, "r", encoding="utf-8") as f:
             report = analyze(f.read())
         found = tags(report, args.max_years)
         print(f"== {path}")
-        print("  " + (" · ".join(found) if found else "没发现问题(JD 没提担保也不代表能办,首轮沟通时直接问)"))
+        print("  " + (" · ".join(found) if found else tr(
+            "没发现问题(JD 没提担保也不代表能办,首轮沟通时直接问)",
+            "Nothing flagged (a JD that doesn't mention sponsorship isn't a yes; ask in the first call)")))
         if report.salary_low:
-            print(f"  年薪 £{report.salary_low:,}–£{report.salary_high:,}"
-                  f"(门槛:标准 £{STANDARD_THRESHOLD:,} / 降低标准下限 £{FLOOR_THRESHOLD:,},{THRESHOLD_CHECKED} 核对 gov.uk;"
-                  "按职业代码的 going rate 可能更高)")
+            print(tr(f"  年薪 £{report.salary_low:,}–£{report.salary_high:,}"
+                     f"(门槛:标准 £{STANDARD_THRESHOLD:,} / 降低标准下限 £{FLOOR_THRESHOLD:,},{THRESHOLD_CHECKED} 核对 gov.uk;"
+                     "按职业代码的 going rate 可能更高)",
+                     f"  Salary £{report.salary_low:,}–£{report.salary_high:,} "
+                     f"(thresholds: standard £{STANDARD_THRESHOLD:,} / reduced floor £{FLOOR_THRESHOLD:,}, "
+                     f"checked against gov.uk on {THRESHOLD_CHECKED}; the going rate for an occupation code can be higher)"))
     return 0
 
 

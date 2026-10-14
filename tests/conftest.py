@@ -28,6 +28,12 @@ def load_script(name):
 
 
 @pytest.fixture(autouse=True)
+def _chinese_output_by_default(monkeypatch):
+    """Tests pin Chinese output unless they opt into English; a developer's own JOBSEARCH_LANG must not leak in."""
+    monkeypatch.delenv("JOBSEARCH_LANG", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _no_real_network(monkeypatch, tmp_path_factory):
     """Safety net: tests never reach gov.uk and never read a register cached on this machine."""
     sc = load_script("sponsor_check")

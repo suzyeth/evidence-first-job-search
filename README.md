@@ -39,18 +39,18 @@ Most AI job-search tools assume the US market. This one handles the UK-specific 
 
 | Stage | Contents |
 |-------|----------|
-| Discover | `scripts/sweep.py`: incremental LinkedIn + Indeed scan (resumable, cross-site dedup, filters senior roles, tags agencies). `scripts/boardsweep.py`: scans target employers' own job boards. **Every hit is tagged with its sponsor-register status**, e.g. `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`, so you see who can sponsor before you open the JD (`--no-sponsor` to turn off) |
+| Discover | `scripts/sweep.py`: incremental LinkedIn + Indeed scan (resumable, cross-site dedup, filters senior roles, tags agencies). `scripts/boardsweep.py`: scans target employers' own job boards on **Greenhouse, Ashby, Lever, Workable and Teamtailor**. **Every hit is tagged with its sponsor-register status**, e.g. `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`, so you see who can sponsor before you open the JD (`--no-sponsor` to turn off) |
 | Track | `sweep.py add <job URL>`: paste a Greenhouse / Ashby / Lever / Workable / Teamtailor / BambooHR / LinkedIn link; it detects the ATS and job id, confirms the job is live, and adds it to your tracked list with a readable label. `sweep.py live` then checks every tracked posting across 9 channels |
 | Screen | 5 gates: live / level fit / right to work / evidenced hard skills / direct vs agency |
-| Sponsorship | `scripts/sponsor_check.py`: gov.uk sponsor register lookup with trading-name aliases + JD sponsorship-wording scan. `--add-alias "Brand" "Legal Name Ltd"` adds a mapping after checking the legal name is really on the register |
+| Sponsorship | `scripts/sponsor_check.py`: gov.uk sponsor register lookup with trading-name aliases + JD sponsorship-wording scan. `--add-alias "Brand" "Legal Name Ltd"` adds a mapping after checking the legal name is really on the register. `--watch "Brand" …` records a baseline and later reports employers that leave the register, change rating or lose their Skilled Worker route |
 | JD check | `scripts/jd_check.py`, also run automatically by `boardsweep.py` on every hit's full JD: flags "no sponsorship" wording, SC/DV security clearance, seniority hidden in the body ("We're looking for a Senior…"), years of experience above your limit, and salary below the Skilled Worker thresholds (£41,700 standard / £33,400 reduced floor, checked against gov.uk on 2026-10-13; occupation going rates can be higher) |
 | Tailor | Extract 5 signal types from the JD and map them to your own fact base. **Only true claims ship** |
-| Fact check | `scripts/fact_check.py`: fails the CV if a number, skill or metric isn't in your fact base, or if a confidential term or `[FILL]` slipped in. Exit code 1 = don't render the PDF. Multi-word skills where at least half the words are evidenced (same thing, different phrasing) are warnings, not failures |
+| Fact check | `scripts/fact_check.py`: fails the CV if a number, skill or metric isn't in your fact base, or if a confidential term or `[FILL]` slipped in. Exit code 1 = don't render the PDF. Multi-word skills where at least half the words are evidenced (same thing, different phrasing) are warnings, not failures. It also checks **employment dates** (a stretched tenure fails) and **job titles** on experience headers (an inflated "Senior …" must be a title of record in your fact base) |
 | Review | 5-dimension rubric plus a standalone reviewer prompt (truthfulness is a hard veto) |
 | After applying | Follow-up email templates, take-home playbook, salary negotiation handbook |
 | Templates | Fact base, application tracker, submit queue, JD archive, cover-letter skeleton, CV PDF stylesheets |
 
-Reference docs and script output are mostly in Chinese; code, configs and email templates are in English.
+Script output is Chinese by default; add **`--lang en`** to any script (or set `JOBSEARCH_LANG=en`) for English. Reference docs are mostly in Chinese; code, configs and email templates are in English.
 
 ## Usage
 
@@ -77,6 +77,8 @@ python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # stdlib only, no install
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md
 python jd_check.py JD.txt --max-years 3                 # check one saved JD
 python sponsor_check.py --add-alias "Bumble" "Badoo Limited"
+python sponsor_check.py --watch "Bumble" "Monzo"           # baseline, then report register changes
+python sponsor_check.py "Bumble" --lang en                 # English output (any script)
 ```
 
 Your configs, logs and fact base are listed in `.gitignore`. Tests run offline: `python -m pip install pytest pytest-cov && python -m pytest tests --cov=scripts` (coverage gate: 80%).

@@ -27,6 +27,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 import jd_check  # noqa: E402  (same folder)
+from i18n import apply_lang_arg, tr  # noqa: E402
 
 DEFAULT_MAX_YEARS = 3
 
@@ -57,7 +58,9 @@ def load_config(path: str) -> dict:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        raise SystemExit(f"找不到 {path}。复制 boardsweep_config.example.json 为 boardsweep_config.json 并填写。")
+        raise SystemExit(tr(f"找不到 {path}。复制 boardsweep_config.example.json 为 boardsweep_config.json 并填写。",
+                            f"{path} not found. Copy boardsweep_config.example.json to boardsweep_config.json "
+                            "and fill it in."))
 
 
 def build_filters(cfg: dict, since: str | None = None) -> Filters:
@@ -199,7 +202,9 @@ def _sponsor_tagger(enabled: bool):
         import sponsor_check
         return sponsor_check.SponsorTagger.load()
     except Exception as exc:
-        print(f"⚠️ 担保名册加载失败({type(exc).__name__}: {exc}),本轮不标担保状态。")
+        print(tr(f"⚠️ 担保名册加载失败({type(exc).__name__}: {exc}),本轮不标担保状态。",
+                 f"⚠️ Could not load the sponsor register ({type(exc).__name__}: {exc}); "
+                 "no sponsor tags this run."))
         return None
 
 
@@ -215,16 +220,21 @@ def _sponsor_tags(hits: list[Hit], enabled: bool) -> dict[str, str]:
     return {key: tagger.tag(key)["display"] for key in dict.fromkeys(_company_key(h) for h in hits)}
 
 
-def _jd_summary(all_tags) -> str:
-    counts = {"❌不担保": 0, "隐藏Senior": 0, "年限超线": 0, "薪资低于门槛": 0}
-    for found in all_tags:
-        counts["❌不担保"] += any(t == "JD❌不担保" for t in found)
-        counts["隐藏Senior"] += any(t == "正文Senior" for t in found)
-        counts["年限超线"] += any(t.startswith("要") for t in found)
-        counts["薪资低于门槛"] += any(t.startswith("£") for t in found)
-    return ("JD 体检:" + " · ".join(f"{k} {v}" for k, v in counts.items())
-            + f"(薪资门槛 £{jd_check.STANDARD_THRESHOLD:,} / 下限 £{jd_check.FLOOR_THRESHOLD:,},"
-            f"{jd_check.THRESHOLD_CHECKED} 核对 gov.uk)\n")
+def _jd_summary(reports, max_years: int) -> str:
+    """按体检结果字段计数,不依赖标签文字(标签会随 --lang 变)。"""
+    reports = list(reports)
+    counts = [
+        (tr("❌不担保", "❌no sponsorship"), sum(r.sponsor == "negative" for r in reports)),
+        (tr("隐藏Senior", "hidden senior"), sum(r.senior for r in reports)),
+        (tr("年限超线", "too many years"), sum(r.years is not None and r.years > max_years for r in reports)),
+        (tr("薪资低于门槛", "salary below threshold"), sum(r.salary_flag in ("below_standard", "below_floor")
+                                                     for r in reports)),
+    ]
+    std, floor, day = (f"£{jd_check.STANDARD_THRESHOLD:,}", f"£{jd_check.FLOOR_THRESHOLD:,}",
+                       jd_check.THRESHOLD_CHECKED)
+    return (tr("JD 体检:", "JD check: ") + " · ".join(f"{k} {v}" for k, v in counts)
+            + tr(f"(薪资门槛 {std} / 下限 {floor},{day} 核对 gov.uk)",
+                 f" (salary thresholds {std} / floor {floor}, checked against gov.uk on {day})") + "\n")
 
 
 def dedupe(hits: list[Hit]) -> list[Hit]:
@@ -238,17 +248,22 @@ def dedupe(hits: list[Hit]) -> list[Hit]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="直扫雇主 Ashby / Greenhouse 招聘板")
+    argv = apply_lang_arg(list(sys.argv[1:] if argv is None else argv))
+    p = argparse.ArgumentParser(description=tr("直扫雇主招聘板(Ashby / Greenhouse / Lever / Workable / Teamtailor)",
+                                               "Scan employer job boards (Ashby / Greenhouse / Lever / Workable / "
+                                               "Teamtailor)"))
     p.add_argument("--config", default=os.path.join(SCRIPT_DIR, "boardsweep_config.json"))
-    p.add_argument("--since", help="只看该日期(YYYY-MM-DD)之后发布/更新的岗")
-    p.add_argument("--no-sponsor", action="store_true", help="不标担保状态")
-    p.add_argument("--no-jd", action="store_true", help="不做 JD 体检")
+    p.add_argument("--since", help=tr("只看该日期(YYYY-MM-DD)之后发布/更新的岗",
+                                      "only jobs published/updated on or after YYYY-MM-DD"))
+    p.add_argument("--no-sponsor", action="store_true", help=tr("不标担保状态", "skip sponsor-register tags"))
+    p.add_argument("--no-jd", action="store_true", help=tr("不做 JD 体检", "skip the JD check"))
+    p.add_argument("--lang", choices=("zh", "en"), help=tr("输出语言", "output language"))
     args = p.parse_args(argv)
     cfg = load_config(args.config)
     try:
         filters = build_filters(cfg, args.since)
     except ValueError:
-        raise SystemExit("--since 格式应为 YYYY-MM-DD")
+        raise SystemExit(tr("--since 格式应为 YYYY-MM-DD", "--since must be YYYY-MM-DD"))
 
     tasks = [(kind, slug) for key, (kind, _) in BOARD_KINDS.items() for slug in cfg.get(key, [])]
     parsers = {kind: parser for kind, parser in BOARD_KINDS.values()}
@@ -262,17 +277,19 @@ def main(argv: list[str] | None = None) -> int:
             alive += 1
             hits += parsers[kind](slug, data, filters)
 
-    print(f"板可达 {alive} / 探测 {len(tasks)}({len(unreachable)} 个 slug 无效或不可达)")
+    print(tr(f"板可达 {alive} / 探测 {len(tasks)}({len(unreachable)} 个 slug 无效或不可达)",
+             f"Boards reached {alive} / {len(tasks)} ({len(unreachable)} invalid or unreachable)"))
     if unreachable:
-        print("  不可达:", " ".join(unreachable))
+        print(tr("  不可达:", "  Unreachable:"), " ".join(unreachable))
     unique = dedupe(hits)
-    print(f"目标地点 × 非-Senior × 目标标题族命中:{len(unique)}\n")
+    print(tr(f"目标地点 × 非-Senior × 目标标题族命中:{len(unique)}\n",
+             f"Matches (location × non-senior × target titles): {len(unique)}\n"))
     sponsor_tags = _sponsor_tags(unique, not args.no_sponsor)
-    jd_tags = {} if args.no_jd else {h: jd_check.tags(jd_check.analyze(h.jd, h.comp),
-                                                      int(cfg.get("max_years", DEFAULT_MAX_YEARS)))
-                                     for h in unique}
-    if jd_tags:
-        print(_jd_summary(jd_tags.values()))
+    max_years = int(cfg.get("max_years", DEFAULT_MAX_YEARS))
+    reports = {} if args.no_jd else {h: jd_check.analyze(h.jd, h.comp) for h in unique}
+    jd_tags = {h: jd_check.tags(r, max_years) for h, r in reports.items()}
+    if reports:
+        print(_jd_summary(reports.values(), max_years))
     for h in unique:
         tag = f" {sponsor_tags[_company_key(h)]}" if _company_key(h) in sponsor_tags else ""
         # 方括号已标明是 JD,标签自带的 "JD" 前缀去掉,避免显示成 [JD:JD❌…]

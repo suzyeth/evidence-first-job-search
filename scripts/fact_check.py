@@ -33,6 +33,9 @@ import re
 import sys
 from dataclasses import asdict, dataclass
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from i18n import apply_lang_arg, tr  # noqa: E402  (same folder)
+
 NUMBER = re.compile(r"[£$€]?(?<![\w.])\d[\d,]*(?:\.\d+)?(?:\s?%|[kKmMxX](?![a-zA-Z]))?")
 URL = re.compile(r"\]\([^)]*\)|https?://\S+|www\.\S+")
 LIST_MARKER = re.compile(r"^\s*\d+[.)]\s+", re.M)
@@ -218,7 +221,9 @@ def _date_findings(resume: str, evidence: str) -> list[Finding]:
             continue
         same_years = any(claimed[0][0] == k[0][0] and claimed[1][0] == k[1][0] for k in known)
         out.append(Finding("FAIL", "date", m.group(0).strip(),
-                           "月份和事实库对不上" if same_years else "这段起止时间在事实库里找不到(任期是不是写长了?)"))
+                           tr("月份和事实库对不上", "months don't match the fact base") if same_years else
+                           tr("这段起止时间在事实库里找不到(任期是不是写长了?)",
+                              "this date range isn't in the fact base (tenure stretched?)")))
     return out
 
 
@@ -250,11 +255,15 @@ def _role_findings(resume: str, evidence: str, evidence_stems: set[str]) -> list
             words = _stems(seg)
             partly = len(words) >= 2 and len(words & evidence_stems) / len(words) >= PARTIAL_SKILL_RATIO
             if partly and not SENIORITY.search(seg):
-                out.append(Finding("WARN", "role", seg, "只有部分词在事实库出现:确认职位 / 公司 / 学校的写法"))
+                out.append(Finding("WARN", "role", seg, tr("只有部分词在事实库出现:确认职位 / 公司 / 学校的写法",
+                                                            "only some words are in the fact base: check how the "
+                                                            "title / company / school is written")))
             else:
                 out.append(Finding("FAIL", "role", seg,
-                                   "职位级别在事实库找不到(注水?)" if SENIORITY.search(seg)
-                                   else "职位 / 公司 / 学校名在事实库找不到"))
+                                   tr("职位级别在事实库找不到(注水?)",
+                                      "this seniority is not a title of record (inflated?)") if SENIORITY.search(seg)
+                                   else tr("职位 / 公司 / 学校名在事实库找不到",
+                                           "title / company / school not in the fact base")))
     return out
 
 
@@ -269,7 +278,7 @@ def check(resume: str, master: str, confidential: list[str]) -> list[Finding]:
     # 日期区间已由 date 规则核对,数字规则里不再重复报年份
     missing = [n for n in extract_numbers(RANGE.sub(" ", resume)) if canonical_number(n) not in evidence_numbers]
     for num in sorted(missing, key=lambda n: resume.find(n)):
-        findings.append(Finding("FAIL", "number", num, "事实库里找不到这个数字"))
+        findings.append(Finding("FAIL", "number", num, tr("事实库里找不到这个数字", "number not in the fact base")))
     for skill in dict.fromkeys(extract_skills(resume)):
         if _skill_evidenced(skill, evidence, evidence_stems):
             continue
@@ -277,24 +286,33 @@ def check(resume: str, master: str, confidential: list[str]) -> list[Finding]:
         if len(words) >= 2 and len(words & evidence_stems) / len(words) >= PARTIAL_SKILL_RATIO:
             # 描述性长短语,一半以上实词有出处:多半是同一件事换了说法,提醒人工确认,不拦截
             findings.append(Finding("WARN", "skill", skill,
-                                    "只有部分词在事实库出现:确认措辞,或把这个写法补进事实库「对外关键词」"))
+                                    tr("只有部分词在事实库出现:确认措辞,或把这个写法补进事实库「对外关键词」",
+                                       "only some words are in the fact base: check the wording, or add this "
+                                       "phrasing to the fact base's public keywords")))
         else:
-            findings.append(Finding("FAIL", "skill", skill, "Skills 里的技能在事实库没有证据"))
+            findings.append(Finding("FAIL", "skill", skill, tr("Skills 里的技能在事实库没有证据",
+                                                                "skill has no evidence in the fact base")))
     for metric in dict.fromkeys(METRIC.findall(resume)):
         if not re.search(r"\b" + metric + r"\b", evidence):
-            findings.append(Finding("FAIL", "metric", metric, "事实库没有这个指标,检查是不是换了指标说法"))
+            findings.append(Finding("FAIL", "metric", metric, tr("事实库没有这个指标,检查是不是换了指标说法",
+                                                                  "metric not in the fact base: was it swapped "
+                                                                  "for a different metric?")))
     for term in confidential:
         pattern = _term_pattern(term)
         visible, anywhere = pattern.search(resume), pattern.search(full_text)
         if visible:
-            findings.append(Finding("FAIL", "confidential", visible.group(0), "命中保密词清单"))
+            findings.append(Finding("FAIL", "confidential", visible.group(0),
+                                    tr("命中保密词清单", "matches the confidential-terms list")))
         elif anywhere:
             findings.append(Finding("FAIL", "confidential", anywhere.group(0),
-                                    "命中保密词清单(在 HTML 注释里:PDF 看不见,但导出的 HTML 会保留)"))
+                                    tr("命中保密词清单(在 HTML 注释里:PDF 看不见,但导出的 HTML 会保留)",
+                                       "matches the confidential-terms list (inside an HTML comment: hidden "
+                                       "in the PDF, but kept in exported HTML)")))
     for m in dict.fromkeys(x.group(0) for x in PLACEHOLDER.finditer(resume)):
-        findings.append(Finding("FAIL", "placeholder", m, "残留占位符"))
+        findings.append(Finding("FAIL", "placeholder", m, tr("残留占位符", "leftover placeholder")))
     for word in dict.fromkeys(x.group(0) for x in BUZZWORD.finditer(resume)):
-        findings.append(Finding("WARN", "buzzword", word, "空话,换成具体动作或数字"))
+        findings.append(Finding("WARN", "buzzword", word, tr("空话,换成具体动作或数字",
+                                                              "buzzword: replace with a concrete action or number")))
     return findings
 
 
@@ -317,28 +335,38 @@ def _read(path: str) -> str:
 
 def render(path: str, findings: list[Finding]) -> str:
     fails = [f for f in findings if f.level == "FAIL"]
-    head = f"== {path}  " + ("✅ 通过" if not fails else f"❌ {len(fails)} 项不通过")
+    head = f"== {path}  " + (tr("✅ 通过", "✅ pass") if not fails
+                             else tr(f"❌ {len(fails)} 项不通过", f"❌ {len(fails)} failed"))
     lines = [head] + [f"  {'❌' if f.level == 'FAIL' else '⚠️'} [{f.rule}] {f.item} —— {f.detail}" for f in findings]
     return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="简历 / 求职信事实核对(对照 master-cv-data.md)")
-    p.add_argument("files", nargs="+", help="要检查的简历 / 求职信 markdown")
-    p.add_argument("--master", help="事实库路径(默认向上查找 master-cv-data.md)")
-    p.add_argument("--confidential", help="保密词清单,一行一个,re: 开头为正则(默认向上查找 confidential-terms.txt)")
+    argv = apply_lang_arg(list(sys.argv[1:] if argv is None else argv))
+    p = argparse.ArgumentParser(description=tr("简历 / 求职信事实核对(对照 master-cv-data.md)",
+                                               "Fact-check a CV / cover letter against master-cv-data.md"))
+    p.add_argument("files", nargs="+", help=tr("要检查的简历 / 求职信 markdown", "CV / cover-letter markdown files"))
+    p.add_argument("--master", help=tr("事实库路径(默认向上查找 master-cv-data.md)",
+                                       "fact base path (default: search upwards for master-cv-data.md)"))
+    p.add_argument("--confidential", help=tr("保密词清单,一行一个,re: 开头为正则(默认向上查找 confidential-terms.txt)",
+                                             "confidential terms, one per line, re: prefix for regex "
+                                             "(default: search upwards for confidential-terms.txt)"))
+    p.add_argument("--lang", choices=("zh", "en"), help=tr("输出语言", "output language"))
     p.add_argument("--json", action="store_true")
     args = p.parse_args(argv)
 
     start = os.path.dirname(os.path.abspath(args.files[0]))
     master_path = args.master or _find_upwards("master-cv-data.md", start)
     if not master_path or not os.path.exists(master_path):
-        print("❌ 找不到 master-cv-data.md,用 --master 指定。没有事实库就无法核对。", file=sys.stderr)
+        print(tr("❌ 找不到 master-cv-data.md,用 --master 指定。没有事实库就无法核对。",
+                 "❌ master-cv-data.md not found; pass --master. Nothing can be checked without a fact base."),
+              file=sys.stderr)
         return 2
     conf_path = args.confidential or _find_upwards("confidential-terms.txt", start)
     confidential = parse_terms(_read(conf_path)) if conf_path and os.path.exists(conf_path) else []
     if not confidential and not args.json:
-        print("⚠️ 没有保密词清单(confidential-terms.txt),本次不检查保密项。\n")
+        print(tr("⚠️ 没有保密词清单(confidential-terms.txt),本次不检查保密项。\n",
+                 "⚠️ No confidential-terms.txt found; confidential terms are not checked this run.\n"))
 
     master, exit_code, report = _read(master_path), 0, {}
     for path in args.files:
@@ -351,7 +379,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     elif exit_code:
-        print("有 ❌ 项:要么改简历,要么(确实做过的)先补进 master-cv-data.md 再派生。")
+        print(tr("有 ❌ 项:要么改简历,要么(确实做过的)先补进 master-cv-data.md 再派生。",
+                 "There are ❌ items: fix the CV, or (if you really did it) add it to master-cv-data.md first "
+                 "and re-derive."))
     return exit_code
 
 

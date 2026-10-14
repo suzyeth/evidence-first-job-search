@@ -39,13 +39,13 @@
 
 | 环节 | 内容 |
 |------|------|
-| 找岗位 | `scripts/sweep.py`:LinkedIn + Indeed 增量扫描（断点续跑、跨站去重、过滤 Senior 岗和中介）；`scripts/boardsweep.py`:直接扫目标公司的官方招聘板。**扫出的每个岗位都自动标上担保状态**，如 `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`，打开 JD 之前就知道这家能不能办签证（`--no-sponsor` 关闭） |
+| 找岗位 | `scripts/sweep.py`:LinkedIn + Indeed 增量扫描（断点续跑、跨站去重、过滤 Senior 岗和中介）；`scripts/boardsweep.py`:直接扫目标公司的官方招聘板，支持 **Greenhouse、Ashby、Lever、Workable、Teamtailor**。**扫出的每个岗位都自动标上担保状态**，如 `担保✅(Anysphere UK Ltd · Cheltenham)` / `担保❓` / `担保❌`，打开 JD 之前就知道这家能不能办签证（`--no-sponsor` 关闭） |
 | 跟踪岗位 | `sweep.py add <岗位链接>`:贴 Greenhouse / Ashby / Lever / Workable / Teamtailor / BambooHR / LinkedIn 的链接，自动识别渠道和岗位 ID、确认还在招，再加进跟踪列表，标签自动生成。之后 `sweep.py live` 逐个检查这些岗位还在不在，支持 9 种渠道 |
 | 筛选 | 5 道 Gate：岗位还在 / 级别对得上 / 有工作许可 / 硬技能有证据 / 是直招还是中介 |
-| 查签证担保 | `scripts/sponsor_check.py`:查 gov.uk 担保名册（含商号→法人名对照）+ 扫 JD 担保措辞。`--add-alias "商号" "法人名"` 先核实法人名确实在名册里，再写进对照表 |
+| 查签证担保 | `scripts/sponsor_check.py`:查 gov.uk 担保名册（含商号→法人名对照）+ 扫 JD 担保措辞。`--add-alias "商号" "法人名"` 先核实法人名确实在名册里，再写进对照表。`--watch "公司" …` 先记基线，之后报告掉出名册、评级变化、失去 Skilled Worker 路线的雇主 |
 | JD 体检 | `scripts/jd_check.py`,`boardsweep.py` 会对每个命中岗位的 JD 全文自动跑一遍：标出写明不担保、要求 SC/DV 安全审查、正文里藏着的 Senior（"We're looking for a Senior…"）、年限要求超过你设的上限、薪资低于 Skilled Worker 门槛（标准 £41,700 / 降低标准下限 £33,400,2026-10-13 核对 gov.uk;按职业代码的 going rate 可能更高） |
 | 定制简历 | 从 JD 抽 5 类信号，对照你自己的事实库来改，**只写真做过的事** |
-| 事实核对 | `scripts/fact_check.py`:简历里的数字、技能、指标在事实库找不到，或者混进了保密词、`[FILL]`,直接判不通过（退出码 1 = 别渲 PDF）。多词技能里一半以上的词在事实库有出处的（同一件事换了说法），只给警告不拦截 |
+| 事实核对 | `scripts/fact_check.py`:简历里的数字、技能、指标在事实库找不到，或者混进了保密词、`[FILL]`,直接判不通过（退出码 1 = 别渲 PDF）。多词技能里一半以上的词在事实库有出处的（同一件事换了说法），只给警告不拦截。还会核对**任职时间**（把任期写长会被拦）和经历标题行里的**职位**（写成 "Senior …" 的，必须是事实库里有记录的职位） |
 | 投前评审 | 五维评审规则 + 一个独立评审 prompt（真实性一票否决） |
 | 投递后 | 跟进邮件模板、take-home 打法、谈薪手册 |
 | 模板 | 事实库、投递追踪表、待投队列、JD 存档、求职信骨架、简历 PDF 样式 |
@@ -77,6 +77,8 @@ python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # 只用标准库，免安
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md
 python jd_check.py JD.txt --max-years 3                 # 单独体检一份存好的 JD
 python sponsor_check.py --add-alias "Bumble" "Badoo Limited"
+python sponsor_check.py --watch "Bumble" "Monzo"           # 记基线，之后报告名册变动
+python sponsor_check.py "Bumble" --lang en                 # 英文输出（所有脚本都支持）
 ```
 
 你的配置文件、日志、事实库都在 `.gitignore` 里，不会被提交。测试不联网：`python -m pip install pytest pytest-cov && python -m pytest tests --cov=scripts`(覆盖率闸门 80%)。

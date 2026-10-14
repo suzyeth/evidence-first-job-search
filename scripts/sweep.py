@@ -24,6 +24,9 @@ import concurrent.futures as cf
 from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlparse
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from i18n import apply_lang_arg, tr  # noqa: E402  (same folder)
+
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36"}
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -53,9 +56,11 @@ def _load_config():
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        raise SystemExit(f"找不到配置文件 {path}。复制 sweep_config.example.json 为 sweep_config.json 并填写。")
+        raise SystemExit(tr(f"找不到配置文件 {path}。复制 sweep_config.example.json 为 sweep_config.json 并填写。",
+                            f"Config file {path} not found. Copy sweep_config.example.json to sweep_config.json "
+                            "and fill it in."))
     except ValueError as exc:
-        raise SystemExit(f"配置文件 JSON 格式错误:{path}: {exc}")
+        raise SystemExit(tr(f"配置文件 JSON 格式错误:{path}: {exc}", f"Invalid JSON in config file {path}: {exc}"))
 
 
 CONFIG = _load_config()
@@ -123,7 +128,7 @@ def _check(chan, arg):
         co, pid = arg
         d = json.loads(fetch(f"https://api.lever.co/v0/postings/{co}?mode=json"))
         return any(j.get("id") == pid for j in d)
-    raise ValueError(f"未知渠道 {chan}")
+    raise ValueError(tr(f"未知渠道 {chan}", f"unknown channel {chan}"))
 
 
 def _entry_key(label, channel, args):
@@ -146,7 +151,7 @@ def live(log=False, prune=False):
     lines = ["## Liveness — " + time.strftime("%Y-%m-%d %H:%M")]
     dead = set()   # 只收确认下架的:DEAD? 存疑和 ERR 网络错都不算
     if not TRACKED:
-        lines.append("  (sweep_config.json 的 tracked 为空)")
+        lines.append(tr("  (sweep_config.json 的 tracked 为空)", "  (tracked in sweep_config.json is empty)"))
     for label, chan, arg in TRACKED:
         try:
             if chan == "linkedin":
@@ -161,10 +166,12 @@ def live(log=False, prune=False):
                     marker = "No longer accepting applications" in h2
                     component = "closed-job" in h2
                     if marker and component:
-                        lines.append(f"  DEAD {label}(双标记坐实)")
+                        lines.append(f"  DEAD {label}" + tr("(双标记坐实)", " (both dead markers)"))
                         dead.add(_entry_key(label, chan, arg))
                     else:
-                        lines.append(f"  DEAD? {label}(复核仅中 {int(marker)+int(component)}/2 标记,待人工核)")
+                        hit = int(marker) + int(component)
+                        lines.append(f"  DEAD? {label}" + tr(f"(复核仅中 {hit}/2 标记,待人工核)",
+                                                             f" (only {hit}/2 dead markers, check by hand)"))
                     continue
             else:
                 ok = _check(chan, arg)
@@ -176,13 +183,20 @@ def live(log=False, prune=False):
     if prune:
         if dead:
             removed = _prune_dead(dead)
-            names = "、".join(label for label, _, _ in sorted(dead))
-            lines.append(f"\n已从 tracked 摘掉 {removed} 条确认下架的岗位:{names}(DEAD? 和 ERR 保留,待人工核)")
+            names = tr("、", ", ").join(label for label, _, _ in sorted(dead))
+            lines.append(tr(f"\n已从 tracked 摘掉 {removed} 条确认下架的岗位:{names}(DEAD? 和 ERR 保留,待人工核)",
+                            f"\nRemoved {removed} confirmed-dead jobs from tracked: {names} "
+                            "(DEAD? and ERR kept for manual review)"))
         else:
-            lines.append("\n没有需要摘掉的岗位(DEAD? 和 ERR 不会自动摘)。")
-    lines.append("\n规则:DEAD → 划掉 SUBMIT-QUEUE + applications.md 并从 tracked 摘掉"
-                 + ("" if prune else "(加 --prune 自动摘)") + ";ERR → 换渠道人工核。"
-                 "\n提醒:linkedin 渠道 OK 只代表镜像在,投前仍须到雇主 ATS 确认。")
+            lines.append(tr("\n没有需要摘掉的岗位(DEAD? 和 ERR 不会自动摘)。",
+                            "\nNothing to remove (DEAD? and ERR are never removed automatically)."))
+    lines.append(tr("\n规则:DEAD → 划掉 SUBMIT-QUEUE + applications.md 并从 tracked 摘掉"
+                    + ("" if prune else "(加 --prune 自动摘)") + ";ERR → 换渠道人工核。"
+                    "\n提醒:linkedin 渠道 OK 只代表镜像在,投前仍须到雇主 ATS 确认。",
+                    "\nRules: DEAD → strike it from your queue and tracker, and remove it from tracked"
+                    + ("" if prune else " (--prune does this automatically)") + "; ERR → check another way."
+                    "\nNote: an OK on a LinkedIn entry only means the mirror is up; confirm on the employer's "
+                    "ATS before applying."))
     out = "\n".join(lines)
     print(out)
     if log:
@@ -324,11 +338,12 @@ def _run_key(days, sites, queries):
 
 def discovery_plan(days, sites, queries):
     tasks = [(track, term, loc, site) for track, term, loc in queries for site in sites]
-    print(f"窗口: {days}d | 查询族: {len(queries)} | 来源: {', '.join(sites)} | 独立任务: {len(tasks)}")
+    print(tr(f"窗口: {days}d | 查询族: {len(queries)} | 来源: {', '.join(sites)} | 独立任务: {len(tasks)}",
+             f"Window: {days}d | queries: {len(queries)} | sources: {', '.join(sites)} | tasks: {len(tasks)}"))
     counts = {}
     for track, _, _ in queries:
         counts[track] = counts.get(track, 0) + 1
-    print("赛道矩阵:", " · ".join(f"{k}={v}" for k, v in counts.items()))
+    print(tr("赛道矩阵:", "Tracks:"), " · ".join(f"{k}={v}" for k, v in counts.items()))
     return tasks
 
 
@@ -344,11 +359,10 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
     try:
         import jobspy  # noqa: F401 - preflight before spawning dozens of isolated workers
     except ImportError:
-        raise SystemExit(
-            "缺少 python-jobspy。请先运行：\n"
-            f"  {sys.executable} -m pip install --target \"{VENDOR_DIR}\" python-jobspy\n"
-            "依赖未安装时不会启动扫描任务。"
-        )
+        install = f"  {sys.executable} -m pip install --target \"{VENDOR_DIR}\" python-jobspy\n"
+        raise SystemExit(tr("缺少 python-jobspy。请先运行：\n" + install + "依赖未安装时不会启动扫描任务。",
+                            "python-jobspy is missing. Install it first:\n" + install
+                            + "No discovery tasks are started without it."))
 
     os.makedirs(STATE_DIR, exist_ok=True)
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -362,8 +376,12 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
     completed = checkpoint["results"]
     pending = [task for task in tasks if _task_id(*task) not in completed]
 
-    print(f"## 增量发现 [{route_name}] — 窗口 {days}d — {time.strftime('%Y-%m-%d %H:%M')}")
-    print(f"任务 {len(tasks)}；断点命中 {len(tasks) - len(pending)}；待跑 {len(pending)}；并发 {workers}")
+    stamp_now = time.strftime("%Y-%m-%d %H:%M")
+    print(tr(f"## 增量发现 [{route_name}] — 窗口 {days}d — {stamp_now}",
+             f"## Discovery [{route_name}] — window {days}d — {stamp_now}"))
+    print(tr(f"任务 {len(tasks)}；断点命中 {len(tasks) - len(pending)}；待跑 {len(pending)}；并发 {workers}",
+             f"Tasks {len(tasks)}; from checkpoint {len(tasks) - len(pending)}; to run {len(pending)}; "
+             f"workers {workers}"))
     if pending:
         with cf.ThreadPoolExecutor(max_workers=max(1, int(workers))) as executor:
             futures = {executor.submit(_run_task, task, hours, timeout, retries): task for task in pending}
@@ -433,13 +451,18 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
                                  _normal(j.get("company")), _normal(j.get("title"))))
     sponsor_summary = _tag_sponsors(relevant, sponsor)
 
-    print(f"\n覆盖率: {len(successes)}/{len(tasks)} = {coverage:.1f}% | 失败 {len(failures)}")
-    print(f"原始 {raw_count} | 跨来源/重挂去重 {len(merged)} | 硬过滤 {excluded} | "
-          f"contextual 留档 {len(contextual)} | 标题直达待核 {len(relevant)}")
+    print(tr(f"\n覆盖率: {len(successes)}/{len(tasks)} = {coverage:.1f}% | 失败 {len(failures)}",
+             f"\nCoverage: {len(successes)}/{len(tasks)} = {coverage:.1f}% | failed {len(failures)}"))
+    print(tr(f"原始 {raw_count} | 跨来源/重挂去重 {len(merged)} | 硬过滤 {excluded} | "
+             f"contextual 留档 {len(contextual)} | 标题直达待核 {len(relevant)}",
+             f"Raw {raw_count} | unique after cross-site/repost dedup {len(merged)} | filtered {excluded} | "
+             f"contextual {len(contextual)} | direct title matches to review {len(relevant)}"))
     if sponsor_summary:
-        print(sponsor_summary + "(✅ 在册有 SW 路线 · ❓ 名字常见待查 · ⚠️ 无 SW 路线 · ❌ 查无,先查法人名)")
+        print(sponsor_summary + tr("(✅ 在册有 SW 路线 · ❓ 名字常见待查 · ⚠️ 无 SW 路线 · ❌ 查无,先查法人名)",
+                                   " (✅ Skilled Worker route · ❓ common name, check · ⚠️ no SW route · "
+                                   "❌ not found, check the legal name)"))
     if failures:
-        print("\n### 未完成任务")
+        print(tr("\n### 未完成任务", "\n### Failed tasks"))
         for r in failures:
             print(f"  * [{r.get('site','?')}] [{r.get('track','?')}] {r.get('term','?')} — {r.get('error','unknown')}")
 
@@ -451,7 +474,7 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
         candidates = by_track.get(track, [])
         if not candidates:
             continue
-        print(f"\n### [{track}] 待核 {len(candidates)}")
+        print(tr(f"\n### [{track}] 待核 {len(candidates)}", f"\n### [{track}] to review {len(candidates)}"))
         shown = 0
         for item in candidates:
             key = _job_key(item)
@@ -459,14 +482,15 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
                 continue
             printed.add(key)
             freshness = "NEW" if item["is_new"] else "SEEN"
-            agency = " [中介·先问后投]" if item["agency"] else ""
+            agency = tr(" [中介·先问后投]", " [agency: ask before sending a CV]") if item["agency"] else ""
             tag = f" {item['sponsor']['display']}" if "sponsor" in item else ""
             sources = "+".join(item.get("sites", []))
             print(f"  * [{freshness}|{sources}] {item.get('title','')[:62]} || "
                   f"{item.get('company','')[:30]}{agency}{tag} || {item.get('job_url','')[:100]}")
             shown += 1
             if shown >= 20:
-                print(f"  ... 另 {len(candidates) - shown} 条见 JSON 日志")
+                print(tr(f"  ... 另 {len(candidates) - shown} 条见 JSON 日志",
+                         f"  ... {len(candidates) - shown} more in the JSON log"))
                 break
 
     stamp = time.strftime("%Y-%m-%d-%H%M%S")
@@ -480,15 +504,24 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
     }
     log_path = os.path.join(LOG_DIR, f"discovery-scan-{stamp}.json")
     _save_json(log_path, report)
-    print(f"\n机器日志: {log_path}")
-    print("规则:LinkedIn/Indeed 只负责高召回发现；命中仍须过 5 道 Gate 并到雇主官网核活。")
+    print(tr(f"\n机器日志: {log_path}", f"\nMachine log: {log_path}"))
+    print(tr("规则:LinkedIn/Indeed 只负责高召回发现；命中仍须过 5 道 Gate 并到雇主官网核活。",
+             "Rule: LinkedIn/Indeed are for discovery only; every hit still goes through the 5 gates and is "
+             "confirmed on the employer's own site."))
     if coverage < 95:
-        print("⚠️ 本轮覆盖率低于 95%，不得表述为‘全量日跑完成’；用 --resume 补失败任务。")
+        print(tr("⚠️ 本轮覆盖率低于 95%，不得表述为‘全量日跑完成’；用 --resume 补失败任务。",
+                 "⚠️ Coverage below 95%: don't call this a complete run; use --resume to retry failed tasks."))
 
 
-AGENCY_SPONSOR_TAG = {"status": "AGENCY", "legal": "", "town": "", "label": "担保?",
-                      "display": "担保?(中介,雇主未知)"}
-SPONSOR_ORDER = ("✅", "❓", "⚠️", "❌", "?", "中介")
+def _agency_sponsor_tag():
+    return {"status": "AGENCY", "legal": "", "town": "", "label": tr("担保?", "sponsor?"),
+            "display": tr("担保?(中介,雇主未知)", "sponsor? (agency, employer unknown)")}
+
+
+# 按状态计数(不靠标签文字,标签会随 --lang 变)
+STATUS_ICON = {"SKILLED_WORKER": "✅", "OTHER_ROUTE_ONLY": "⚠️", "AMBIGUOUS": "❓", "POSSIBLE": "❓",
+               "NOT_FOUND": "❌", "UNKNOWN": "?"}
+SPONSOR_ORDER = ("✅", "❓", "⚠️", "❌", "?", "AGENCY")
 
 
 def _sponsor_tagger(enabled):
@@ -501,7 +534,9 @@ def _sponsor_tagger(enabled):
         import sponsor_check
         return sponsor_check.SponsorTagger.load()
     except Exception as exc:
-        print(f"⚠️ 担保名册加载失败({type(exc).__name__}: {exc}),本轮不标担保状态。")
+        print(tr(f"⚠️ 担保名册加载失败({type(exc).__name__}: {exc}),本轮不标担保状态。",
+                 f"⚠️ Could not load the sponsor register ({type(exc).__name__}: {exc}); "
+                 "no sponsor tags this run."))
         return None
 
 
@@ -514,11 +549,13 @@ def _tag_sponsors(items, enabled):
         return ""
     counts = {}
     for item in items:
-        tag = dict(AGENCY_SPONSOR_TAG) if item.get("agency") else dict(tagger.tag(item.get("company", "")))
+        tag = _agency_sponsor_tag() if item.get("agency") else dict(tagger.tag(item.get("company", "")))
         item["sponsor"] = tag
-        key = "中介" if item.get("agency") else tag["label"].replace("担保", "")
+        key = "AGENCY" if item.get("agency") else STATUS_ICON.get(tag["status"], "?")
         counts[key] = counts.get(key, 0) + 1
-    return "担保:" + " · ".join(f"{k} {counts[k]}" for k in SPONSOR_ORDER if k in counts)
+    agency = tr("中介", "agency")
+    return tr("担保:", "Sponsor: ") + " · ".join(f"{agency if k == 'AGENCY' else k} {counts[k]}"
+                                              for k in SPONSOR_ORDER if k in counts)
 
 
 def _parse_discovery_args(args, forced_sites=None):
@@ -548,7 +585,8 @@ def _filter_tracks(args, queries):
     wanted = {t.strip() for t in args[args.index("--tracks") + 1].split(",") if t.strip()}
     picked = [q for q in queries if q[0] in wanted]
     if not picked:
-        raise SystemExit(f"--tracks {','.join(sorted(wanted))} 在 queries 里没有匹配的赛道")
+        raise SystemExit(tr(f"--tracks {','.join(sorted(wanted))} 在 queries 里没有匹配的赛道",
+                            f"--tracks {','.join(sorted(wanted))} matches no track in queries"))
     return picked, ",".join(sorted(wanted))
 
 
@@ -570,8 +608,11 @@ SUPPORTED_HOSTS = "Greenhouse / Ashby / Lever / Workable / Teamtailor / BambooHR
 def parse_job_url(url):
     """岗位链接 -> (渠道, 参数),参数格式与 sweep_config.json 的 tracked 一致。"""
     if "gh_jid=" in url:
-        raise ValueError("这是公司官网嵌的 Greenhouse 岗位,链接里看不出是哪个 Greenhouse 板。"
-                         "在页面上点 Apply 或查看源码,找 boards.greenhouse.io/<板名>/jobs/<id> 那个链接再加。")
+        raise ValueError(tr("这是公司官网嵌的 Greenhouse 岗位,链接里看不出是哪个 Greenhouse 板。"
+                            "在页面上点 Apply 或查看源码,找 boards.greenhouse.io/<板名>/jobs/<id> 那个链接再加。",
+                            "This is a Greenhouse job embedded on a company site; the link doesn't say which "
+                            "Greenhouse board it is. Click Apply or view the page source and add the "
+                            "boards.greenhouse.io/<board>/jobs/<id> link instead."))
     m = _LINKEDIN_ID.search(url)
     if m:
         return "linkedin", m.group(1) or m.group(2)
@@ -582,8 +623,10 @@ def parse_job_url(url):
                 return channel, m.group(1)
             first, second = m.group(1), m.group(2)
             return channel, [first, int(second) if channel == "greenhouse" else second]
-    raise ValueError(f"不认识这个链接。支持:{SUPPORTED_HOSTS}。"
-                     "公司自建招聘页请找它背后的 ATS 链接(通常在 Apply 按钮上)。")
+    raise ValueError(tr(f"不认识这个链接。支持:{SUPPORTED_HOSTS}。"
+                        "公司自建招聘页请找它背后的 ATS 链接(通常在 Apply 按钮上)。",
+                        f"Unrecognised link. Supported: {SUPPORTED_HOSTS}. For a company's own careers page, "
+                        "use the ATS link behind it (usually on the Apply button)."))
 
 
 def _html_title(page):
@@ -642,40 +685,48 @@ def add_job(url, config_path, label=None, force=False):
         config = json.load(f)
     entries = config.get("tracked", [])
     if any(_same(e, channel, args) for e in entries):
-        print(f"已经在跟踪了:{channel} {args}")
+        print(tr(f"已经在跟踪了:{channel} {args}", f"Already tracked: {channel} {args}"))
         return 0
     try:
         alive = _is_live(channel, args)
     except Exception as exc:
-        print(f"❌ 没法确认这个岗位还在不在({type(exc).__name__})。检查网络或链接后重试;确定要加就用 --force。")
+        print(tr(f"❌ 没法确认这个岗位还在不在({type(exc).__name__})。检查网络或链接后重试;确定要加就用 --force。",
+                 f"❌ Couldn't confirm the job is live ({type(exc).__name__}). Check the network or link and "
+                 "retry; use --force to add it anyway."))
         return 1
     if not alive and not force:
-        print("❌ 这个岗位已下架(雇主板上找不到),没有加入。确定要加(比如等它重挂)就用 --force。")
+        print(tr("❌ 这个岗位已下架(雇主板上找不到),没有加入。确定要加(比如等它重挂)就用 --force。",
+                 "❌ This job is closed (not on the employer's board), so it wasn't added. Use --force to add "
+                 "it anyway (e.g. to catch a repost)."))
         return 1
     title, company = describe_job(channel, args)
     if channel == "ashby_id" and title:
         # 按标题跟踪:同一个 req 改题升格(Senior -> Lead)时能立刻判死,按 id 跟踪抓不到
         channel, args = "ashby_title", [args[0], title]
         if any(_same(e, channel, args) for e in entries):
-            print(f"已经在跟踪了:{channel} {args}")
+            print(tr(f"已经在跟踪了:{channel} {args}", f"Already tracked: {channel} {args}"))
             return 0
     entry = {"label": label or " · ".join(p for p in (company, title) if p) or url,
              "channel": channel, "args": args}
     updated = {**config, "tracked": [*entries, entry]}
     with open(config_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(updated, ensure_ascii=False, indent=2) + "\n")
-    print(f"✅ 已加入跟踪:{entry['label']}  [{channel}]" + ("" if alive else "(当前不在架,按 --force 加入)"))
+    print(tr(f"✅ 已加入跟踪:{entry['label']}  [{channel}]", f"✅ Now tracking: {entry['label']}  [{channel}]")
+          + ("" if alive else tr("(当前不在架,按 --force 加入)", " (not live now; added with --force)")))
     if channel == "linkedin":
-        print("⚠️ 这是 LinkedIn 镜像:镜像还在 ≠ 岗位还在。最好找到雇主自己的招聘页链接,改用它来跟踪。")
+        print(tr("⚠️ 这是 LinkedIn 镜像:镜像还在 ≠ 岗位还在。最好找到雇主自己的招聘页链接,改用它来跟踪。",
+                 "⚠️ This is a LinkedIn mirror: a live mirror ≠ a live job. Better to track the employer's own "
+                 "job page."))
     return 0
 
 
 def main(argv=None):
-    argv = list(sys.argv[1:] if argv is None else argv)
+    argv = apply_lang_arg(list(sys.argv[1:] if argv is None else argv))
     cmd = argv[0] if argv else "live"
     if cmd == "add":
         if len(argv) < 2 or argv[1].startswith("--"):
-            print("用法:python sweep.py add <岗位链接> [--label 标签] [--force]")
+            print(tr("用法:python sweep.py add <岗位链接> [--label 标签] [--force]",
+                     "Usage: python sweep.py add <job URL> [--label LABEL] [--force]"))
             return 2
         label = argv[argv.index("--label") + 1] if "--label" in argv else None
         return add_job(argv[1], _config_path(), label=label, force="--force" in argv)

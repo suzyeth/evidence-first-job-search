@@ -30,6 +30,9 @@ import urllib.request
 from dataclasses import dataclass, field
 from urllib.parse import quote_plus
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from i18n import apply_lang_arg, tr  # noqa: E402  (same folder)
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(SCRIPT_DIR, "cache")
 DEFAULT_ALIASES = os.path.join(SCRIPT_DIR, "sponsor_aliases.json")
@@ -133,7 +136,9 @@ def load_register(path: str) -> Register:
         reader = csv.DictReader(f)
         missing = {"Organisation Name", "Route"} - set(reader.fieldnames or [])
         if missing:
-            raise RegisterError(f"名册 CSV 缺少列 {missing},gov.uk 可能改了格式:{path}")
+            raise RegisterError(tr(f"名册 CSV 缺少列 {missing},gov.uk 可能改了格式:{path}",
+                                   f"register CSV is missing columns {missing}; gov.uk may have changed "
+                                   f"the format: {path}"))
         for row in reader:
             name = (row.get("Organisation Name") or "").strip()
             if not name:
@@ -152,7 +157,9 @@ def load_register(path: str) -> Register:
 def find_csv_link(html: str) -> str:
     links = re.findall(r'https://assets\.publishing\.service\.gov\.uk/[^"\']+?\.csv', html)
     if not links:
-        raise RegisterError("在 gov.uk 页面上没找到名册 CSV 链接,页面结构可能变了:" + PUBLICATION_URL)
+        raise RegisterError(tr("在 gov.uk 页面上没找到名册 CSV 链接,页面结构可能变了:",
+                               "no register CSV link found on the gov.uk page; the page may have changed: ")
+                            + PUBLICATION_URL)
     return links[0]
 
 
@@ -175,9 +182,12 @@ def ensure_register(max_age_days: float = 1.0, refresh: bool = False) -> str:
         data = _fetch(link, timeout=180)
     except Exception as exc:  # 网络错误:能用旧缓存就用,并明确告知
         if cached:
-            print(f"⚠️ 下载名册失败({type(exc).__name__}),改用旧缓存 {os.path.basename(cached)}", file=sys.stderr)
+            print(tr(f"⚠️ 下载名册失败({type(exc).__name__}),改用旧缓存 {os.path.basename(cached)}",
+                     f"⚠️ Register download failed ({type(exc).__name__}); using the older cache "
+                     f"{os.path.basename(cached)}"), file=sys.stderr)
             return cached
-        raise RegisterError(f"下载名册失败且没有缓存:{exc}") from exc
+        raise RegisterError(tr(f"下载名册失败且没有缓存:{exc}",
+                               f"register download failed and there is no cache: {exc}")) from exc
     m = re.search(r"(\d{4}-\d{2}-\d{2})\.csv$", link)
     stamp = m.group(1) if m else time.strftime("%Y-%m-%d")
     os.makedirs(CACHE_DIR, exist_ok=True)
@@ -319,39 +329,58 @@ def scan_jd(text: str) -> list[JdHit]:
 
 # ---------------------------------------------------------------- output
 
-STATUS_TEXT = {
-    "SKILLED_WORKER": "✅ 在册,有 Skilled Worker 路线",
-    "OTHER_ROUTE_ONLY": "⚠️ 在册,但没有 Skilled Worker 路线",
-    "AMBIGUOUS": "❓ 名字太常见,下面的命中可能都是同名的无关公司,无法判断",
-    "POSSIBLE": "❓ 只有近似匹配,请人工确认是不是同一家",
-    "NOT_FOUND": "❌ 名册查无",
-}
-JD_TEXT = {"negative": "❌ 不担保", "positive": "✅ 可担保", "check": "⚠️ 需核实"}
+def status_text(status: str) -> str:
+    return {
+        "SKILLED_WORKER": tr("✅ 在册,有 Skilled Worker 路线", "✅ On the register with a Skilled Worker route"),
+        "OTHER_ROUTE_ONLY": tr("⚠️ 在册,但没有 Skilled Worker 路线",
+                               "⚠️ On the register, but no Skilled Worker route"),
+        "AMBIGUOUS": tr("❓ 名字太常见,下面的命中可能都是同名的无关公司,无法判断",
+                        "❓ Name too common: the matches below may be unrelated companies with the same name"),
+        "POSSIBLE": tr("❓ 只有近似匹配,请人工确认是不是同一家",
+                       "❓ Only close spellings matched: check it is the same company"),
+        "NOT_FOUND": tr("❌ 名册查无", "❌ Not on the register"),
+    }[status]
+
+
+def jd_text(signal: str) -> str:
+    return {"negative": tr("❌ 不担保", "❌ no sponsorship"), "positive": tr("✅ 可担保", "✅ sponsorship offered"),
+            "check": tr("⚠️ 需核实", "⚠️ check")}[signal]
 
 
 def _format_org(m: Match, all_routes: bool) -> str:
     routes = sorted(m.org.routes) if all_routes else (
         [SKILLED_WORKER] if SKILLED_WORKER in m.org.routes else sorted(m.org.routes))
     place = " · ".join(p for p in (m.org.town, m.org.county) if p)
-    return f"    [{m.kind:<8}] {m.org.name} · {place} · {m.org.rating} 级 · {', '.join(routes)}"
+    rating = tr(f"{m.org.rating} 级", f"rating {m.org.rating}")
+    return f"    [{m.kind:<8}] {m.org.name} · {place} · {rating} · {', '.join(routes)}"
 
 
 def render(result: LookupResult, all_routes: bool = False) -> str:
-    head = f"== {result.query}" + (f"(别名 → {result.via_alias})" if result.via_alias else "")
-    lines = [head, "  " + STATUS_TEXT[result.status]]
+    head = f"== {result.query}" + (tr(f"(别名 → {result.via_alias})", f" (alias → {result.via_alias})")
+                                   if result.via_alias else "")
+    lines = [head, "  " + status_text(result.status)]
     lines += [_format_org(m, all_routes) for m in result.matches[:MAX_SHOWN]]
     if result.total_hits > MAX_SHOWN:
-        lines.append(f"    …另有 {result.total_hits - MAX_SHOWN} 条,用 --json 查看全部")
+        lines.append(tr(f"    …另有 {result.total_hits - MAX_SHOWN} 条,用 --json 查看全部",
+                        f"    …{result.total_hits - MAX_SHOWN} more, see --json"))
     if result.noisy:
-        lines.append("  ⚠️ 名字是常见词或命中过多,子串匹配不可靠 —— 先去 Companies House 拿法人名再查:")
+        lines.append(tr("  ⚠️ 名字是常见词或命中过多,子串匹配不可靠 —— 先去 Companies House 拿法人名再查:",
+                        "  ⚠️ Common word or too many matches, so substring matching is unreliable. "
+                        "Get the legal name from Companies House first:"))
         lines.append("     " + result.companies_house_url)
     if result.status == "NOT_FOUND":
-        lines += ["  别急着下结论:商号查不到 ≠ 没有牌照。",
-                  "    1) 去 Companies House 查英国法人名:" + result.companies_house_url,
-                  "    2) 用法人名重查,并把「商号 → 法人名」加进 sponsor_aliases.json",
-                  "    3) Companies House 也查无 = 英国无实体,基本可判死"]
+        lines += [tr("  别急着下结论:商号查不到 ≠ 没有牌照。",
+                     "  Don't conclude yet: a trading name not found ≠ no licence."),
+                  tr("    1) 去 Companies House 查英国法人名:", "    1) Look up the UK legal name on Companies House: ")
+                  + result.companies_house_url,
+                  tr("    2) 用法人名重查,并把「商号 → 法人名」加进 sponsor_aliases.json",
+                     "    2) Search again with the legal name and add it with --add-alias"),
+                  tr("    3) Companies House 也查无 = 英国无实体,基本可判死",
+                     "    3) Not on Companies House either = no UK entity, almost certainly no sponsorship")]
     elif result.status in ("SKILLED_WORKER", "POSSIBLE"):
-        lines.append("  提醒:名册只证明雇主有牌照,这个岗位是否担保还要看 JD(加 --jd)。")
+        lines.append(tr("  提醒:名册只证明雇主有牌照,这个岗位是否担保还要看 JD(加 --jd)。",
+                        "  Note: the register only proves the employer holds a licence; check the JD for "
+                        "this role (add --jd)."))
     return "\n".join(lines)
 
 
@@ -393,14 +422,15 @@ class SponsorTagger:
     def tag(self, company: str) -> dict:
         key = core_name(company or "")
         if not key:
-            return {"status": "UNKNOWN", "legal": "", "town": "", "label": "担保?", "display": "担保?"}
+            unknown = tr("担保?", "sponsor?")
+            return {"status": "UNKNOWN", "legal": "", "town": "", "label": unknown, "display": unknown}
         if key not in self._cache:
             self._cache[key] = self._tag(company)
         return self._cache[key]
 
     def _tag(self, company: str) -> dict:
         result = lookup(company, self.register, self.aliases, fuzzy=False)
-        label = "担保" + TAG_ICON[result.status]
+        label = tr("担保", "sponsor") + TAG_ICON[result.status]
         org = None
         if result.status in ("SKILLED_WORKER", "OTHER_ROUTE_ONLY"):
             # 附上命中的法人名和城市:同名不同家(Cursor Ltd · Lincoln ≠ Cursor 编辑器)要靠人眼一眼识别
@@ -422,10 +452,10 @@ def add_alias(trading: str, legal: str, register: Register, aliases_path: str) -
     org = next((o for name, o in register.items() if name.strip().lower() == legal.strip().lower()), None) \
         or next((o for o in register.values() if core_name(o.name) == wanted), None)
     if org is None:
-        print(f"❌ 名册里没有「{legal}」,没有写入。")
+        print(tr(f"❌ 名册里没有「{legal}」,没有写入。", f"❌ \"{legal}\" is not on the register; nothing written."))
         close = difflib.get_close_matches(legal, list(register), n=3, cutoff=0.8)
         if close:
-            print("   你要找的是不是:" + " / ".join(close))
+            print(tr("   你要找的是不是:", "   Did you mean: ") + " / ".join(close))
         return 1
     current = {}
     if os.path.exists(aliases_path):
@@ -434,9 +464,12 @@ def add_alias(trading: str, legal: str, register: Register, aliases_path: str) -
     updated = {**current, trading.strip(): org.name}
     with open(aliases_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(updated, ensure_ascii=False, indent=2) + "\n")
-    print(f"✅ 已加入:{trading.strip()} → {org.name}({org.town} · {org.rating} 级)")
+    print(tr(f"✅ 已加入:{trading.strip()} → {org.name}({org.town} · {org.rating} 级)",
+             f"✅ Added: {trading.strip()} → {org.name} ({org.town} · rating {org.rating})"))
     if SKILLED_WORKER not in org.routes:
-        print(f"⚠️ 注意:这家机构在名册里没有 Skilled Worker 路线(只有 {', '.join(sorted(org.routes))})。")
+        routes = ", ".join(sorted(org.routes))
+        print(tr(f"⚠️ 注意:这家机构在名册里没有 Skilled Worker 路线(只有 {routes})。",
+                 f"⚠️ Note: this entity has no Skilled Worker route on the register (only {routes})."))
     return 0
 
 
@@ -465,18 +498,22 @@ def _changes(query: str, old: dict, new: dict) -> list[str]:
     for name, before in old["orgs"].items():
         after = new["orgs"].get(name)
         if after is None:
-            out.append(f"🔴 {query}:{name} 已从名册消失")
+            out.append(tr(f"🔴 {query}:{name} 已从名册消失", f"🔴 {query}: {name} has left the register"))
             continue
         if before["rating"] != after["rating"]:
-            out.append(f"🟠 {query}:{name} 评级 {before['rating']} → {after['rating']}")
+            out.append(tr(f"🟠 {query}:{name} 评级 {before['rating']} → {after['rating']}",
+                          f"🟠 {query}: {name} rating {before['rating']} → {after['rating']}"))
         had, has = SKILLED_WORKER in before["routes"], SKILLED_WORKER in after["routes"]
         if had and not has:
-            out.append(f"🟠 {query}:{name} 失去 Skilled Worker 路线")
+            out.append(tr(f"🟠 {query}:{name} 失去 Skilled Worker 路线",
+                          f"🟠 {query}: {name} lost its Skilled Worker route"))
         elif has and not had:
-            out.append(f"🟢 {query}:{name} 新增 Skilled Worker 路线")
+            out.append(tr(f"🟢 {query}:{name} 新增 Skilled Worker 路线",
+                          f"🟢 {query}: {name} gained a Skilled Worker route"))
     if not old["orgs"]:
         for name, org in new["orgs"].items():
-            out.append(f"🟢 {query}:现在在名册上了({name} · {org['town']} · {org['rating']} 级)")
+            out.append(tr(f"🟢 {query}:现在在名册上了({name} · {org['town']} · {org['rating']} 级)",
+                          f"🟢 {query}: now on the register ({name} · {org['town']} · rating {org['rating']})"))
     return out
 
 
@@ -492,49 +529,63 @@ def watch(names: list[str], register: Register, aliases: dict, state_path: str, 
     for name in names:
         snap = _snapshot(lookup(name, register, aliases, fuzzy=False))
         if snap is None:
-            lines.append(f"⚠️ {name}:名字太常见,无法确定是哪家,不纳入监控。先用 --add-alias 固定法人名。")
+            lines.append(tr(f"⚠️ {name}:名字太常见,无法确定是哪家,不纳入监控。先用 --add-alias 固定法人名。",
+                            f"⚠️ {name}: name too common to pin to one entity, not watched. "
+                            "Fix the legal name with --add-alias first."))
             continue
         current[name] = snap
         if first_run:
-            orgs = ", ".join(f"{o} ({v['rating']} 级)" for o, v in snap["orgs"].items()) or "名册查无"
+            orgs = ", ".join(tr(f"{o} ({v['rating']} 级)", f"{o} (rating {v['rating']})")
+                             for o, v in snap["orgs"].items()) or tr("名册查无", "not on the register")
             lines.append(f"   {name}:{orgs}")
         elif name not in old_companies:
-            lines.append(f"🆕 {name}:新加入监控")
+            lines.append(tr(f"🆕 {name}:新加入监控", f"🆕 {name}: now watched"))
         else:
             diff = _changes(name, old_companies[name], snap)
             changed += bool(diff)
-            lines += diff or [f"   {name}:无变化"]
+            lines += diff or [tr(f"   {name}:无变化", f"   {name}: no change")]
     os.makedirs(os.path.dirname(os.path.abspath(state_path)), exist_ok=True)
     state = {"register": register_name, "checked": time.strftime("%Y-%m-%d"), "companies": current}
     with open(state_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(state, ensure_ascii=False, indent=2) + "\n")
     if first_run:
-        print(f"建立基线:{len(current)} 家公司,名册 {register_name}。下次运行会报告变化。")
+        print(tr(f"建立基线:{len(current)} 家公司,名册 {register_name}。下次运行会报告变化。",
+                 f"Baseline recorded: {len(current)} companies, register {register_name}. "
+                 "The next run reports changes."))
     else:
-        print(f"对比基线(上次 {previous.get('checked', '?')} · {previous.get('register', '?')} → 本次 {register_name})")
+        last = f"{previous.get('checked', '?')} · {previous.get('register', '?')}"
+        print(tr(f"对比基线(上次 {last} → 本次 {register_name})",
+                 f"Compared with baseline (last {last} → now {register_name})"))
     print("\n".join(lines))
     watched = sum(1 for n in current if n in old_companies)
     if not first_run:
-        print(f"\n{watched} 家里 {changed} 家有变化。" if changed else f"\n{watched} 家都没有变化。")
+        print(tr(f"\n{watched} 家里 {changed} 家有变化。", f"\n{changed} of {watched} changed.") if changed
+              else tr(f"\n{watched} 家都没有变化。", f"\nNo changes across {watched} companies."))
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="英国签证担保名册核查 + JD 担保措辞扫描")
-    p.add_argument("companies", nargs="*", help="公司名(商号或法人名均可)")
-    p.add_argument("--file", help="每行一个公司名的文本文件")
-    p.add_argument("--jd", nargs="*", default=[], help="要扫描担保措辞的 JD 文件")
-    p.add_argument("--register", help="使用本地名册 CSV,不联网")
-    p.add_argument("--refresh", action="store_true", help="强制重新下载名册")
-    p.add_argument("--max-age", type=float, default=1.0, help="缓存有效天数(默认 1)")
-    p.add_argument("--aliases", default=DEFAULT_ALIASES, help="商号 → 法人名 别名文件")
-    p.add_argument("--all-routes", action="store_true", help="显示全部签证路线")
-    p.add_argument("--json", action="store_true", help="输出 JSON")
+    argv = apply_lang_arg(list(sys.argv[1:] if argv is None else argv))
+    p = argparse.ArgumentParser(description=tr("英国签证担保名册核查 + JD 担保措辞扫描",
+                                               "UK visa sponsor register lookup + JD sponsorship-wording scan"))
+    p.add_argument("companies", nargs="*", help=tr("公司名(商号或法人名均可)", "company names (trading or legal)"))
+    p.add_argument("--file", help=tr("每行一个公司名的文本文件", "text file with one company per line"))
+    p.add_argument("--jd", nargs="*", default=[], help=tr("要扫描担保措辞的 JD 文件", "JD files to scan for sponsorship wording"))
+    p.add_argument("--register", help=tr("使用本地名册 CSV,不联网", "use a local register CSV, no download"))
+    p.add_argument("--refresh", action="store_true", help=tr("强制重新下载名册", "force a fresh register download"))
+    p.add_argument("--max-age", type=float, default=1.0, help=tr("缓存有效天数(默认 1)", "cache lifetime in days (default 1)"))
+    p.add_argument("--aliases", default=DEFAULT_ALIASES, help=tr("商号 → 法人名 别名文件", "trading → legal name alias file"))
+    p.add_argument("--all-routes", action="store_true", help=tr("显示全部签证路线", "show every visa route"))
+    p.add_argument("--json", action="store_true", help=tr("输出 JSON", "JSON output"))
+    p.add_argument("--lang", choices=("zh", "en"), help=tr("输出语言", "output language"))
     p.add_argument("--watch", action="store_true",
-                   help="监控这些公司:第一次记基线,之后报告掉出名册 / 评级变化 / 失去 SW 路线 / 新入册")
-    p.add_argument("--state", default=DEFAULT_WATCH_STATE, help="--watch 的基线文件")
-    p.add_argument("--add-alias", nargs=2, metavar=("商号", "法人名"),
-                   help="核实法人名在名册里后,把「商号 → 法人名」写进别名文件")
+                   help=tr("监控这些公司:第一次记基线,之后报告掉出名册 / 评级变化 / 失去 SW 路线 / 新入册",
+                           "watch these companies: record a baseline, then report removals, rating changes, "
+                           "lost/gained Skilled Worker routes and new listings"))
+    p.add_argument("--state", default=DEFAULT_WATCH_STATE, help=tr("--watch 的基线文件", "baseline file for --watch"))
+    p.add_argument("--add-alias", nargs=2, metavar=("TRADING", "LEGAL"),
+                   help=tr("核实法人名在名册里后,把「商号 → 法人名」写进别名文件",
+                           "after confirming the legal name is on the register, save the trading → legal alias"))
     args = p.parse_args(argv)
 
     if args.add_alias:
@@ -555,7 +606,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.watch:
         if not names:
-            print("--watch 需要公司名(直接写在命令里,或用 --file)。")
+            print(tr("--watch 需要公司名(直接写在命令里,或用 --file)。",
+                     "--watch needs company names (on the command line or via --file)."))
             return 2
         try:
             path = args.register or ensure_register(args.max_age, args.refresh)
@@ -575,7 +627,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         aliases = load_aliases(args.aliases)
         if not args.json:
-            print(f"名册:{os.path.basename(path)} · {len(register)} 家机构\n")
+            print(tr(f"名册:{os.path.basename(path)} · {len(register)} 家机构\n",
+                     f"Register: {os.path.basename(path)} · {len(register)} organisations\n"))
         for name in names:
             result = lookup(name, register, aliases)
             output["companies"].append(_as_dict(result))
@@ -589,9 +642,11 @@ def main(argv: list[str] | None = None) -> int:
         if not args.json:
             print(f"== JD:{jd_path}")
             if not hits:
-                print("  JD 没有提到担保或工作许可 —— 不代表能担保,首轮沟通时直接问。")
+                print(tr("  JD 没有提到担保或工作许可 —— 不代表能担保,首轮沟通时直接问。",
+                         "  The JD doesn't mention sponsorship or right to work. That isn't a yes; ask in the "
+                         "first call."))
             for h in hits:
-                print(f"  {JD_TEXT[h.signal]}  {h.sentence}")
+                print(f"  {jd_text(h.signal)}  {h.sentence}")
             print()
 
     if args.json:

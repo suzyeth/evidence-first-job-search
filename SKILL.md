@@ -49,7 +49,7 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
    - `DEAD?` → 只中一个死信标记,人工复核。
    - `ERR` → 网络错 ≠ 死,换渠道人工核。
 3. **净新增**:`python tools/sweep.py new <距上轮天数>`(LinkedIn + Indeed),或 `linkedin 1` 做 24h 热扫。覆盖率 < 95% 时不得说"全量跑完",用 `--resume` 补。每个命中岗位会自动标担保状态:`担保✅(法人名 · 城市)` 先核对法人是不是同一家;`担保❓` 名字太常见,必须先查法人名;`担保❌` 名册查无;`担保?(中介…)` 中介岗不查。标注只是初筛,入队前仍按第 ③ 道 Gate 用 `sponsor_check.py --jd` 复核。
-4. **雇主板补扫**:`python tools/boardsweep.py [--since YYYY-MM-DD]`,直打 Ashby / Greenhouse 公开 API,同样标担保状态(Greenhouse 用 JD 里的真实公司名,Ashby 用板 slug;slug 和公司名差太多时用 `sponsor_check.py --add-alias` 加对照)。它还会读每个命中岗位的 JD 全文自动体检:`JD❌不担保` / `JD⚠️要安全审查(SC/DV)` / `正文Senior` / `要N年+`(超过配置里的 `max_years`)/ `£Xk<门槛`。这几项分别对应 5 道 Gate 的 ③②②③,标出来的岗位直接降级,不用再点开 JD。
+4. **雇主板补扫**:`python tools/boardsweep.py [--since YYYY-MM-DD]`,直打 Ashby / Greenhouse / Lever / Workable / Teamtailor 的公开接口(配置里分别列 slug),同样标担保状态(Greenhouse 用 JD 里的真实公司名,Ashby 用板 slug;slug 和公司名差太多时用 `sponsor_check.py --add-alias` 加对照)。它还会读每个命中岗位的 JD 全文自动体检:`JD❌不担保` / `JD⚠️要安全审查(SC/DV)` / `正文Senior` / `要N年+`(超过配置里的 `max_years`)/ `£Xk<门槛`。这几项分别对应 5 道 Gate 的 ③②②③,标出来的岗位直接降级,不用再点开 JD。
 5. 新岗逐个过 **5 道 Gate**(见下),过了才入 SUBMIT-QUEUE,**入队即加进 tracked**:`python tools/sweep.py add <雇主 ATS 链接>`(自动识别渠道、确认在架、生成标签;Ashby 自动改成按标题跟踪)。优先用雇主 ATS 链接,LinkedIn 链接只在找不到雇主页时用。
 6. 回写 `applications.md`(新增"第 N 轮"段)+ `FOCUS.md` 日志;清临时文件。
 
@@ -82,7 +82,7 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
 
 按 [references/cv-review-rubric.md](references/cv-review-rubric.md) 五维评估:A JD 对齐 / **B 真实性(一票否决)** / C 6 秒扫描 / D ATS 文字层 / E 差异化。可以在当前对话里直接跑,但更推荐用 [prompts/cv-reviewer.md](prompts/cv-reviewer.md) 在**新对话 / 独立代理**里跑:写简历的和评简历的分开,更不容易自我放水。
 
-**先跑机器核对**:`python tools/fact_check.py applications/<slug>/resume_<co>.md`。数字 / 技能 / 指标在事实库找不到、命中 `confidential-terms.txt` 保密词、残留 `[FILL]` 都会判 ❌(退出码 1)。处理方式只有两种:改简历,或者(确实做过的)先把对外写法补进 master-cv 的「对外关键词」节。机器核对过了再做五维人工评审。
+**先跑机器核对**(它也核对经历标题行的任职时间和职位:任期写长、职位写成没有记录的 Senior / Lead 都会被拦):`python tools/fact_check.py applications/<slug>/resume_<co>.md`。数字 / 技能 / 指标在事实库找不到、命中 `confidential-terms.txt` 保密词、残留 `[FILL]` 都会判 ❌(退出码 1)。处理方式只有两种:改简历,或者(确实做过的)先把对外写法补进 master-cv 的「对外关键词」节。机器核对过了再做五维人工评审。
 
 保密词放在工作区根目录的 `confidential-terms.txt`(模板见 `templates/`),一行一个。
 
