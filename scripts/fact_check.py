@@ -10,6 +10,7 @@
   FAIL  placeholder   残留 [FILL] / TODO / TBD
   WARN  buzzword      passionate / driven / spearheaded 等空话
 事实库中标题带 🔒 / 内部备注 / internal notes / confidential 的小节**不算证据**(那是内部备注,不能出现在对外文档里)。
+被检查文件里的 HTML 注释 <!-- … --> 不参与检查:渲染成 PDF 后看不见,常用来放内部备注。
 
 用法(Python 3.10+,只用标准库):
   python fact_check.py applications/acme/resume_acme.md
@@ -39,6 +40,7 @@ HUMAN_LANGUAGES = {"english", "mandarin", "chinese", "cantonese", "french", "spa
                    "japanese", "korean", "portuguese", "arabic", "hindi", "russian", "dutch", "polish", "turkish"}
 STOPWORDS = {"and", "or", "the", "of", "for", "with", "in", "on", "to", "a", "an", "via", "using"}
 METRIC = re.compile(r"\b(ARPPU|ARPU|DAU|MAU|WAU|LTV|CAC|ROAS|ROI|CTR|CVR|NPS|MRR|ARR|GMV|AOV|CPI|D(?:1|3|7|14|30|60|90))\b")
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 PLACEHOLDER = re.compile(r"\[FILL[^\]]*\]|\bTODO\b|\bTBD\b|\bXXX\b|lorem ipsum", re.I)
 BUZZWORD = re.compile(r"(?<![\w-])(passionate|driven|dedicated|hard-?working|detail-oriented|spearhead(?:ed|ing)?|"
                       r"leverag(?:ed|ing)|synerg(?:y|ies)|go-getter|rock ?star|ninja|guru|self-starter)\b", re.I)
@@ -159,6 +161,7 @@ def _term_pattern(term: str) -> re.Pattern:
 # ---------------------------------------------------------------- checks
 
 def check(resume: str, master: str, confidential: list[str]) -> list[Finding]:
+    resume = HTML_COMMENT.sub(" ", resume)
     evidence = public_master(master)
     evidence_numbers = {canonical_number(n) for n in extract_numbers(evidence)}
     evidence_stems = _stems(evidence)

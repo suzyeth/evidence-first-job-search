@@ -131,6 +131,19 @@ def test_human_languages_are_not_checked_as_skills():
     assert fc.check("**Skills:** Python, English, Mandarin", "Python", []) == []
 
 
+def test_html_comments_are_not_checked():
+    resume = read("resume_good.md") + (
+        "\n<!--\ninternal note: drafted from line 744, 99 tests\n"
+        "- **Skills**: Kubernetes, Rust\nTODO: ask about ARPU\n-->\n"
+    )
+    assert not [f for f in fc.check(resume, MASTER, CONFIDENTIAL) if f.level == "FAIL"]
+
+
+def test_text_after_html_comment_is_still_checked():
+    findings = fc.check("<!-- note -->\nGrew retention by 999%", MASTER, CONFIDENTIAL)
+    assert "999%" in [f.item for f in by_rule(findings, "number")]
+
+
 # ---- CLI ----
 
 def test_main_exit_codes(tmp_path):
