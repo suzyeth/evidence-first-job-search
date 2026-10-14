@@ -8,6 +8,10 @@
   FAIL  metric        出现事实库里没有的指标缩写(如把 paying-user rate 写成 ARPU)
   FAIL  confidential  命中保密词清单(前雇主代号、营收数字等)
   FAIL  placeholder   残留 [FILL] / TODO / TBD
+  FAIL  date          任职 / 在校起止时间在事实库对不上(年份不同,或两边都写了月份但月份不同)
+  FAIL  role          经历标题行里的职位 / 公司 / 学校在事实库找不到;带 Senior / Lead 等级别词的职位
+                      必须出现在事实库的标题行或带日期的任职记录行,叙述句里提到不算(防职位注水)
+  WARN  role          职位 / 公司 / 学校名只有一部分词对得上(多半是写法不同)
   WARN  skill         多词技能只有一部分词在事实库出现(换了说法的可能性大,人工确认)
   WARN  buzzword      passionate / driven / spearheaded 等空话
 事实库中标题带 🔒 / 内部备注 / internal notes / confidential 的小节**不算证据**(那是内部备注,不能出现在对外文档里)。
@@ -164,15 +168,106 @@ def _term_pattern(term: str) -> re.Pattern:
 
 # ---------------------------------------------------------------- checks
 
+# ---------------------------------------------------------------- dates & roles
+
+_MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10,
+           "nov": 11, "dec": 12}
+_MONTH_WORD = (r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
+               r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
+
+
+def _endpoint(tag: str) -> str:
+    return (rf"(?:(?P<{tag}mon>{_MONTH_WORD})\.?\s+)?(?P<{tag}y>(?:19|20)\d{{2}})"
+            rf"(?:[-/.](?P<{tag}mm>1[0-2]|0?[1-9])(?!\d))?")
+
+
+RANGE = re.compile(_endpoint("a") + r"\s*(?:-|–|—|~|to|至)\s*(?:(?P<present>present|current|now|today|至今|今)\b|"
+                   + _endpoint("b") + r")", re.I)
+SENIORITY = re.compile(r"\b(senior|sr|lead|principal|staff|head|director|manager|chief|vp|founding)\b", re.I)
+
+
+def _month(match: re.Match, tag: str) -> int | None:
+    word, number = match.group(f"{tag}mon"), match.group(f"{tag}mm")
+    return _MONTHS[word[:3].lower()] if word else (int(number) if number else None)
+
+
+def parse_ranges(text: str) -> list[tuple]:
+    """'October 2024 — Present' -> [((2024, 10), ('present', None))];年-月、纯年份、至今都认。"""
+    out = []
+    for m in RANGE.finditer(text or ""):
+        end = ("present", None) if m.group("present") else (int(m.group("by")), _month(m, "b"))
+        out.append(((int(m.group("ay")), _month(m, "a")), end))
+    return out
+
+
+def _same_period(a: tuple, b: tuple) -> bool:
+    """年份必须一致;两边都写了月份时月份也要一致,一边没写月份不算矛盾。"""
+    (a_start, a_end), (b_start, b_end) = a, b
+    for x, y in ((a_start, b_start), (a_end, b_end)):
+        if x[0] != y[0] or (x[1] and y[1] and x[1] != y[1]):
+            return False
+    return True
+
+
+def _date_findings(resume: str, evidence: str) -> list[Finding]:
+    known = parse_ranges(evidence)
+    out = []
+    for m in RANGE.finditer(resume):
+        claimed = parse_ranges(m.group(0))[0]
+        if any(_same_period(claimed, k) for k in known):
+            continue
+        same_years = any(claimed[0][0] == k[0][0] and claimed[1][0] == k[1][0] for k in known)
+        out.append(Finding("FAIL", "date", m.group(0).strip(),
+                           "月份和事实库对不上" if same_years else "这段起止时间在事实库里找不到(任期是不是写长了?)"))
+    return out
+
+
+def _header_segments(line: str) -> list[str]:
+    """经历标题行去掉日期、markdown、括号注释后,按 · | , @ 和带空格的破折号切成 职位 / 公司 / 地点。"""
+    text = RANGE.sub(" ", line)
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)          # [链接文字](url) -> 链接文字
+    text = re.sub(r"<[^>]+>|\([^)]*\)|[#*_`]", " ", text)
+    parts = re.split(r"\s*[·|•,@]\s*|\s+[—–-]\s+", text)
+    return [p.strip() for p in parts if len(p.strip()) > 1 and not p.strip().isdigit()]
+
+
+def _titles_of_record(evidence: str) -> str:
+    """事实库里的"任职记录":标题行和带日期区间的行。叙述句(「scope 达到 Senior 级别」)不算。"""
+    return "\n".join(l for l in evidence.splitlines() if l.lstrip().startswith("#") or RANGE.search(l))
+
+
+def _role_findings(resume: str, evidence: str, evidence_stems: set[str]) -> list[Finding]:
+    records = _titles_of_record(evidence)
+    out = []
+    for line in resume.splitlines():
+        stripped = line.strip()
+        if not (stripped.startswith("#") or stripped.startswith("**")) or not RANGE.search(stripped):
+            continue
+        for seg in _header_segments(stripped):
+            # 带级别词的职位只认任职记录;公司 / 学校 / 地点全文查找即可
+            if _mentions(seg, records if SENIORITY.search(seg) else evidence):
+                continue
+            words = _stems(seg)
+            partly = len(words) >= 2 and len(words & evidence_stems) / len(words) >= PARTIAL_SKILL_RATIO
+            if partly and not SENIORITY.search(seg):
+                out.append(Finding("WARN", "role", seg, "只有部分词在事实库出现:确认职位 / 公司 / 学校的写法"))
+            else:
+                out.append(Finding("FAIL", "role", seg,
+                                   "职位级别在事实库找不到(注水?)" if SENIORITY.search(seg)
+                                   else "职位 / 公司 / 学校名在事实库找不到"))
+    return out
+
+
 def check(resume: str, master: str, confidential: list[str]) -> list[Finding]:
     full_text = resume                       # 保密词要扫全文:pandoc 导出的 HTML 会原样保留注释
     resume = HTML_COMMENT.sub(" ", resume)
     evidence = public_master(master)
     evidence_numbers = {canonical_number(n) for n in extract_numbers(evidence)}
     evidence_stems = _stems(evidence)
-    findings: list[Finding] = []
+    findings: list[Finding] = _date_findings(resume, evidence) + _role_findings(resume, evidence, evidence_stems)
 
-    missing = [n for n in extract_numbers(resume) if canonical_number(n) not in evidence_numbers]
+    # 日期区间已由 date 规则核对,数字规则里不再重复报年份
+    missing = [n for n in extract_numbers(RANGE.sub(" ", resume)) if canonical_number(n) not in evidence_numbers]
     for num in sorted(missing, key=lambda n: resume.find(n)):
         findings.append(Finding("FAIL", "number", num, "事实库里找不到这个数字"))
     for skill in dict.fromkeys(extract_skills(resume)):
