@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""雇主板扩网 —— 直接打 Ashby / Greenhouse 公开 posting API,零聚合站依赖。
+"""雇主板扩网 —— 直接打 Ashby / Greenhouse / Lever / Workable / Teamtailor 的公开接口,零聚合站依赖。
 雇主自家板 != 聚合站镜像;聚合站漏掉的岗主要靠这一步补。
 
 用法:
@@ -20,7 +20,7 @@ import re
 import sys
 import urllib.request
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36"}
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -109,12 +109,71 @@ def _get(url: str, timeout: int = 20) -> dict:
     return json.load(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout))
 
 
-def fetch_board(kind: str, slug: str) -> dict | None:
-    # 带上 JD 全文 / 薪资摘要,给 jd_check 用
-    urls = ([f"https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"] if kind == "ashby" else
-            [f"https://{h}/v1/boards/{slug}/jobs?content=true"
-             for h in ("boards-api.greenhouse.io", "boards-api.eu.greenhouse.io")])
-    for url in urls:   # Greenhouse 部分板只在 EU 节点
+def lever_hits(slug: str, data: list, f: Filters) -> list[Hit]:
+    out = []
+    for j in data or []:
+        cats = j.get("categories") or {}
+        places = [cats.get("location"), *(cats.get("allLocations") or [])]
+        loc = "; ".join(dict.fromkeys(p for p in places if p))   # allLocations 常常重复主地点
+        created = j.get("createdAt")
+        stamp = datetime.fromtimestamp(created / 1000, timezone.utc).isoformat() if created else None
+        title = j.get("text", "")
+        if wanted(title, loc, stamp, f):
+            sections = " ".join(jd_check.html_to_text(s.get("content", "")) for s in j.get("lists") or [])
+            jd = " ".join(p for p in (j.get("descriptionPlain"), sections, j.get("additionalPlain")) if p)
+            out.append(Hit("lever", slug, title, loc[:46], j.get("hostedUrl", ""), (stamp or "")[:10], jd=jd))
+    return out
+
+
+def workable_hits(slug: str, data: dict, f: Filters) -> list[Hit]:
+    out = []
+    for j in data.get("jobs", []):
+        title = j.get("title", "")
+        loc = ", ".join(p for p in (j.get("city"), j.get("state"), j.get("country")) if p)
+        stamp = j.get("published_on")
+        if wanted(title, loc, stamp, f):
+            out.append(Hit("workable", slug, title, loc[:46], j.get("url", ""), (stamp or "")[:10],
+                           company=data.get("name") or "", jd=jd_check.html_to_text(j.get("description", ""))))
+    return out
+
+
+COUNTRY_CODES = {"GB": "United Kingdom", "UK": "United Kingdom", "IE": "Ireland", "US": "United States"}
+
+
+def teamtailor_hits(slug: str, data: dict, f: Filters) -> list[Hit]:
+    """Teamtailor 的 jobs.json 带 schema.org JobPosting;国家是代码(GB),要先转成英文名,否则英国过滤匹配不到。"""
+    out = []
+    for item in data.get("items", []):
+        posting = item.get("_jobposting") or {}
+        places = [(p.get("address") or {}) for p in posting.get("jobLocation") or []]
+        loc = "; ".join(", ".join(x for x in (a.get("addressLocality"),
+                                              COUNTRY_CODES.get(a.get("addressCountry"), a.get("addressCountry"))) if x)
+                        for a in places)
+        title, stamp = item.get("title", ""), item.get("date_published")
+        if wanted(title, loc, stamp, f):
+            company = (posting.get("hiringOrganization") or {}).get("name") or data.get("title") or ""
+            out.append(Hit("teamtailor", slug, title, loc[:46], item.get("url", ""), (stamp or "")[:10],
+                           company=company, jd=jd_check.html_to_text(item.get("content_html", ""))))
+    return out
+
+
+BOARD_URLS = {
+    # 带上 JD 全文 / 薪资摘要,给 jd_check 用;Greenhouse / Lever 部分公司只在 EU 节点
+    "ashby": ["https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"],
+    "gh": ["https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true",
+           "https://boards-api.eu.greenhouse.io/v1/boards/{slug}/jobs?content=true"],
+    "lever": ["https://api.lever.co/v0/postings/{slug}?mode=json", "https://api.eu.lever.co/v0/postings/{slug}?mode=json"],
+    "workable": ["https://apply.workable.com/api/v1/widget/accounts/{slug}?details=true"],
+    "teamtailor": ["https://{slug}.teamtailor.com/jobs.json"],
+}
+# 配置里的键 -> (内部 kind, 解析函数)
+BOARD_KINDS = {"ashby": ("ashby", ashby_hits), "greenhouse": ("gh", greenhouse_hits), "lever": ("lever", lever_hits),
+               "workable": ("workable", workable_hits), "teamtailor": ("teamtailor", teamtailor_hits)}
+
+
+def fetch_board(kind: str, slug: str):
+    urls = [u.format(slug=slug) for u in BOARD_URLS.get(kind, [])]
+    for url in urls:
         try:
             return _get(url)
         except Exception:
@@ -191,16 +250,17 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError:
         raise SystemExit("--since 格式应为 YYYY-MM-DD")
 
-    tasks = [("ashby", s) for s in cfg.get("ashby", [])] + [("gh", s) for s in cfg.get("greenhouse", [])]
+    tasks = [(kind, slug) for key, (kind, _) in BOARD_KINDS.items() for slug in cfg.get(key, [])]
+    parsers = {kind: parser for kind, parser in BOARD_KINDS.values()}
     hits, alive, unreachable = [], 0, []
     with cf.ThreadPoolExecutor(max_workers=12) as ex:
-        boards = ex.map(lambda t: (t, fetch_board("ashby" if t[0] == "ashby" else "gh", t[1])), tasks)
+        boards = ex.map(lambda t: (t, fetch_board(t[0], t[1])), tasks)
         for (kind, slug), data in boards:
             if data is None:
                 unreachable.append(f"{kind}:{slug}")
                 continue
             alive += 1
-            hits += (ashby_hits if kind == "ashby" else greenhouse_hits)(slug, data, filters)
+            hits += parsers[kind](slug, data, filters)
 
     print(f"板可达 {alive} / 探测 {len(tasks)}({len(unreachable)} 个 slug 无效或不可达)")
     if unreachable:
