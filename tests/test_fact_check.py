@@ -54,6 +54,13 @@ def test_skill_not_in_master_fails():
     assert [f.item for f in skills] == ["Kubernetes"]
 
 
+def test_trailing_sentence_punctuation_is_not_part_of_a_skill():
+    # seen on a real CV: "…, TypeScript, C#." and "Languages: Mandarin, English ."
+    assert fc.extract_skills("**Skills:** Python, C#.") == ["Python", "C#"]
+    assert fc.extract_skills("**Skills:** Python, English .") == ["Python"]
+    assert fc.extract_skills("**Skills:** .NET, Node.js;") == [".NET", "Node.js"]
+
+
 def test_skills_line_parsing():
     assert fc.extract_skills("**Skills:** Python · Unity, C# | SQL") == ["Python", "Unity", "C#", "SQL"]
 
@@ -137,6 +144,19 @@ def test_html_comments_are_not_checked():
         "- **Skills**: Kubernetes, Rust\nTODO: ask about ARPU\n-->\n"
     )
     assert not [f for f in fc.check(resume, MASTER, CONFIDENTIAL) if f.level == "FAIL"]
+
+
+def test_confidential_terms_inside_html_comments_still_fail():
+    # pandoc keeps <!-- comments --> in exported HTML, so a codename in a comment can still leak
+    findings = fc.check("Shipped a card RPG.\n<!-- internal: Project Falcon notes -->", MASTER, CONFIDENTIAL)
+    conf = by_rule(findings, "confidential")
+    assert [f.item for f in conf] == ["Project Falcon"] and conf[0].level == "FAIL"
+    assert "HTML 注释" in conf[0].detail
+
+
+def test_confidential_term_in_visible_text_keeps_normal_message():
+    conf = by_rule(fc.check("Worked on Project Falcon.", MASTER, CONFIDENTIAL), "confidential")
+    assert conf[0].detail == "命中保密词清单"
 
 
 def test_text_after_html_comment_is_still_checked():

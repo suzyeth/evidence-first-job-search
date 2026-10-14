@@ -10,7 +10,8 @@
   FAIL  placeholder   残留 [FILL] / TODO / TBD
   WARN  buzzword      passionate / driven / spearheaded 等空话
 事实库中标题带 🔒 / 内部备注 / internal notes / confidential 的小节**不算证据**(那是内部备注,不能出现在对外文档里)。
-被检查文件里的 HTML 注释 <!-- … --> 不参与检查:渲染成 PDF 后看不见,常用来放内部备注。
+被检查文件里的 HTML 注释 <!-- … --> 不参与数字 / 技能 / 指标 / 占位符检查(渲染成 PDF 后看不见,常用来放内部备注);
+**保密词仍然扫注释**:pandoc 导出的 HTML 会原样保留注释,发出去就会泄露。
 
 用法(Python 3.10+,只用标准库):
   python fact_check.py applications/acme/resume_acme.md
@@ -107,7 +108,8 @@ def _split_skills(raw: str) -> list[str]:
     parts.append("".join(buf))
     items = []
     for part in parts:
-        head = re.sub(r"\([^)]*\)?", "", part).strip(" *_-\t")
+        # 句末标点不是技能名的一部分("C#." -> "C#");只去尾部,".NET" 的前导点要保留
+        head = re.sub(r"\([^)]*\)?", "", part).strip(" *_-\t").rstrip(" .;:。;").strip()
         if head and head.lower() not in HUMAN_LANGUAGES:
             items.append(head)
     return items
@@ -161,6 +163,7 @@ def _term_pattern(term: str) -> re.Pattern:
 # ---------------------------------------------------------------- checks
 
 def check(resume: str, master: str, confidential: list[str]) -> list[Finding]:
+    full_text = resume                       # 保密词要扫全文:pandoc 导出的 HTML 会原样保留注释
     resume = HTML_COMMENT.sub(" ", resume)
     evidence = public_master(master)
     evidence_numbers = {canonical_number(n) for n in extract_numbers(evidence)}
@@ -177,9 +180,13 @@ def check(resume: str, master: str, confidential: list[str]) -> list[Finding]:
         if not re.search(r"\b" + metric + r"\b", evidence):
             findings.append(Finding("FAIL", "metric", metric, "事实库没有这个指标,检查是不是换了指标说法"))
     for term in confidential:
-        m = _term_pattern(term).search(resume)
-        if m:
-            findings.append(Finding("FAIL", "confidential", m.group(0), "命中保密词清单"))
+        pattern = _term_pattern(term)
+        visible, anywhere = pattern.search(resume), pattern.search(full_text)
+        if visible:
+            findings.append(Finding("FAIL", "confidential", visible.group(0), "命中保密词清单"))
+        elif anywhere:
+            findings.append(Finding("FAIL", "confidential", anywhere.group(0),
+                                    "命中保密词清单(在 HTML 注释里:PDF 看不见,但导出的 HTML 会保留)"))
     for m in dict.fromkeys(x.group(0) for x in PLACEHOLDER.finditer(resume)):
         findings.append(Finding("FAIL", "placeholder", m, "残留占位符"))
     for word in dict.fromkeys(x.group(0) for x in BUZZWORD.finditer(resume)):
