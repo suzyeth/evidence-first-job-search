@@ -45,7 +45,7 @@ Most AI job-search tools assume the US market. This one handles the UK-specific 
 | Sponsorship | `scripts/sponsor_check.py`: gov.uk sponsor register lookup with trading-name aliases + JD sponsorship-wording scan. `--add-alias "Brand" "Legal Name Ltd"` adds a mapping after checking the legal name is really on the register |
 | JD check | `scripts/jd_check.py`, also run automatically by `boardsweep.py` on every hit's full JD: flags "no sponsorship" wording, SC/DV security clearance, seniority hidden in the body ("We're looking for a Senior…"), years of experience above your limit, and salary below the Skilled Worker thresholds (£41,700 standard / £33,400 reduced floor, checked against gov.uk on 2026-10-13; occupation going rates can be higher) |
 | Tailor | Extract 5 signal types from the JD and map them to your own fact base. **Only true claims ship** |
-| Fact check | `scripts/fact_check.py`: fails the CV if a number, skill or metric isn't in your fact base, or if a confidential term or `[FILL]` slipped in. Exit code 1 = don't render the PDF |
+| Fact check | `scripts/fact_check.py`: fails the CV if a number, skill or metric isn't in your fact base, or if a confidential term or `[FILL]` slipped in. Exit code 1 = don't render the PDF. Multi-word skills where at least half the words are evidenced (same thing, different phrasing) are warnings, not failures |
 | Review | 5-dimension rubric plus a standalone reviewer prompt (truthfulness is a hard veto) |
 | After applying | Follow-up email templates, take-home playbook, salary negotiation handbook |
 | Templates | Fact base, application tracker, submit queue, JD archive, cover-letter skeleton, CV PDF stylesheets |
@@ -70,7 +70,7 @@ python -m pip install --target vendor python-jobspy   # discovery only
 
 python sweep.py new 3 --plan     # show the query matrix, no network
 python sweep.py add https://jobs.ashbyhq.com/<company>/<job-id>   # start tracking a job
-python sweep.py live --log       # liveness check for tracked jobs
+python sweep.py live --log --prune   # liveness check; --prune drops confirmed-dead jobs from tracked
 python sweep.py new 7            # new postings from the last 7 days, each tagged with sponsor status
 python boardsweep.py --since 2026-01-01   # + sponsor tag and JD check on every hit
 python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # stdlib only, no install

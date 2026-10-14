@@ -4,7 +4,8 @@
 所有个人数据(跟踪的岗位、关键词、地点、过滤词)都在同目录的 sweep_config.json 里,脚本本身不用改。
 
 用法(Python 3.10+):
-  python sweep.py live [--log]              # 跟踪队列存活检查;--log 追加到 logs/live-log.md
+  python sweep.py live [--log] [--prune]    # 跟踪队列存活检查;--log 追加到 logs/live-log.md;
+                                            #   --prune 把确认下架的岗位从 tracked 摘掉(存疑 / 网络错不动)
   python sweep.py new 7                     # LinkedIn + Indeed 近 7 天增量发现
   python sweep.py linkedin 1                # 只扫 LinkedIn 近 24h
   python sweep.py linkedin 7 --resume       # 复用同日同参数已完成的任务(断点续跑)
@@ -125,8 +126,25 @@ def _check(chan, arg):
     raise ValueError(f"未知渠道 {chan}")
 
 
-def live(log=False):
+def _entry_key(label, channel, args):
+    return (label, channel, json.dumps(list(args) if isinstance(args, (list, tuple)) else args))
+
+
+def _prune_dead(dead):
+    """把确认下架的条目从 sweep_config.json 的 tracked 里删掉;其余配置原样保留。"""
+    path = _config_path()
+    with open(path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    tracked = config.get("tracked", [])
+    keep = [e for e in tracked if _entry_key(e.get("label"), e.get("channel"), e.get("args")) not in dead]
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps({**config, "tracked": keep}, ensure_ascii=False, indent=2) + "\n")
+    return len(tracked) - len(keep)
+
+
+def live(log=False, prune=False):
     lines = ["## Liveness — " + time.strftime("%Y-%m-%d %H:%M")]
+    dead = set()   # 只收确认下架的:DEAD? 存疑和 ERR 网络错都不算
     if not TRACKED:
         lines.append("  (sweep_config.json 的 tracked 为空)")
     for label, chan, arg in TRACKED:
@@ -144,15 +162,26 @@ def live(log=False):
                     component = "closed-job" in h2
                     if marker and component:
                         lines.append(f"  DEAD {label}(双标记坐实)")
+                        dead.add(_entry_key(label, chan, arg))
                     else:
                         lines.append(f"  DEAD? {label}(复核仅中 {int(marker)+int(component)}/2 标记,待人工核)")
                     continue
             else:
                 ok = _check(chan, arg)
             lines.append(("  OK   " if ok else "  DEAD ") + label)
+            if not ok:
+                dead.add(_entry_key(label, chan, arg))
         except Exception as e:
             lines.append(f"  ERR  {label}: {type(e).__name__}")  # 网络错 ≠ 死,人工复核
-    lines.append("\n规则:DEAD → 划掉 SUBMIT-QUEUE + applications.md 并从 tracked 摘掉;ERR → 换渠道人工核。"
+    if prune:
+        if dead:
+            removed = _prune_dead(dead)
+            names = "、".join(label for label, _, _ in sorted(dead))
+            lines.append(f"\n已从 tracked 摘掉 {removed} 条确认下架的岗位:{names}(DEAD? 和 ERR 保留,待人工核)")
+        else:
+            lines.append("\n没有需要摘掉的岗位(DEAD? 和 ERR 不会自动摘)。")
+    lines.append("\n规则:DEAD → 划掉 SUBMIT-QUEUE + applications.md 并从 tracked 摘掉"
+                 + ("" if prune else "(加 --prune 自动摘)") + ";ERR → 换渠道人工核。"
                  "\n提醒:linkedin 渠道 OK 只代表镜像在,投前仍须到雇主 ATS 确认。")
     out = "\n".join(lines)
     print(out)
@@ -651,7 +680,7 @@ def main(argv=None):
         label = argv[argv.index("--label") + 1] if "--label" in argv else None
         return add_job(argv[1], _config_path(), label=label, force="--force" in argv)
     if cmd == "live":
-        live(log="--log" in argv)
+        live(log="--log" in argv, prune="--prune" in argv)
     elif cmd == "_query_worker":
         _query_worker(argv[1], argv[2], argv[3], int(argv[4]), argv[5])
     elif cmd in ("new", "linkedin"):

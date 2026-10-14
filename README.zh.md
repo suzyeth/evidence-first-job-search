@@ -45,7 +45,7 @@
 | 查签证担保 | `scripts/sponsor_check.py`:查 gov.uk 担保名册（含商号→法人名对照）+ 扫 JD 担保措辞。`--add-alias "商号" "法人名"` 先核实法人名确实在名册里，再写进对照表 |
 | JD 体检 | `scripts/jd_check.py`,`boardsweep.py` 会对每个命中岗位的 JD 全文自动跑一遍：标出写明不担保、要求 SC/DV 安全审查、正文里藏着的 Senior（"We're looking for a Senior…"）、年限要求超过你设的上限、薪资低于 Skilled Worker 门槛（标准 £41,700 / 降低标准下限 £33,400,2026-10-13 核对 gov.uk;按职业代码的 going rate 可能更高） |
 | 定制简历 | 从 JD 抽 5 类信号，对照你自己的事实库来改，**只写真做过的事** |
-| 事实核对 | `scripts/fact_check.py`:简历里的数字、技能、指标在事实库找不到，或者混进了保密词、`[FILL]`,直接判不通过（退出码 1 = 别渲 PDF） |
+| 事实核对 | `scripts/fact_check.py`:简历里的数字、技能、指标在事实库找不到，或者混进了保密词、`[FILL]`,直接判不通过（退出码 1 = 别渲 PDF）。多词技能里一半以上的词在事实库有出处的（同一件事换了说法），只给警告不拦截 |
 | 投前评审 | 五维评审规则 + 一个独立评审 prompt（真实性一票否决） |
 | 投递后 | 跟进邮件模板、take-home 打法、谈薪手册 |
 | 模板 | 事实库、投递追踪表、待投队列、JD 存档、求职信骨架、简历 PDF 样式 |
@@ -70,7 +70,7 @@ python -m pip install --target vendor python-jobspy       # 只有扫新岗需�
 
 python sweep.py new 3 --plan     # 先看要跑哪些搜索（不联网）
 python sweep.py add https://jobs.ashbyhq.com/<公司>/<岗位ID>   # 开始跟踪一个岗位
-python sweep.py live --log       # 检查在跟的岗位还在不在
+python sweep.py live --log --prune   # 检查在跟的岗位还在不在；--prune 把确认下架的自动摘掉
 python sweep.py new 7            # 扫近 7 天的新岗，每个岗位自动标担保状态
 python boardsweep.py --since 2026-01-01   # 每个岗位自动标担保状态 + JD 体检
 python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # 只用标准库，免安装

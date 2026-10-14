@@ -44,8 +44,8 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
 详细规程见 [references/sweep-runbook.md](references/sweep-runbook.md)。流程:
 
 1. `date` 校准日期;读 `FOCUS.md` / `applications.md` 修改时间,判断上轮之后有没有新投递回填。
-2. **存活检查**:`python tools/sweep.py live --log` —— 逐个查 `sweep_config.json` 里 `tracked` 的岗位。
-   - `DEAD` → 同步划掉 SUBMIT-QUEUE + applications.md,**并当场从 tracked 摘掉**(不摘下轮会重报)。
+2. **存活检查**:`python tools/sweep.py live --log --prune` —— 逐个查 `sweep_config.json` 里 `tracked` 的岗位;`--prune` 把确认下架(DEAD)的条目当场从 tracked 摘掉,`DEAD?` 和 `ERR` 保留待人工核。
+   - `DEAD` → 同步划掉 SUBMIT-QUEUE + applications.md,**并当场从 tracked 摘掉**(不摘下轮会重报;`--prune` 会自动摘,但 SUBMIT-QUEUE 和 applications.md 仍要手动改)。
    - `DEAD?` → 只中一个死信标记,人工复核。
    - `ERR` → 网络错 ≠ 死,换渠道人工核。
 3. **净新增**:`python tools/sweep.py new <距上轮天数>`(LinkedIn + Indeed),或 `linkedin 1` 做 24h 热扫。覆盖率 < 95% 时不得说"全量跑完",用 `--resume` 补。每个命中岗位会自动标担保状态:`担保✅(法人名 · 城市)` 先核对法人是不是同一家;`担保❓` 名字太常见,必须先查法人名;`担保❌` 名册查无;`担保?(中介…)` 中介岗不查。标注只是初筛,入队前仍按第 ③ 道 Gate 用 `sponsor_check.py --jd` 复核。

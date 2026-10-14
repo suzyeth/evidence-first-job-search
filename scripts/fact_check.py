@@ -4,10 +4,11 @@
 
 检查项:
   FAIL  number        简历里的数字(含 % / k / x)在事实库里找不到
-  FAIL  skill         Skills 行里的技能在事实库里找不到
+  FAIL  skill         Skills 行里的技能在事实库里找不到(单个词,或多词但不到一半的词有出处)
   FAIL  metric        出现事实库里没有的指标缩写(如把 paying-user rate 写成 ARPU)
   FAIL  confidential  命中保密词清单(前雇主代号、营收数字等)
   FAIL  placeholder   残留 [FILL] / TODO / TBD
+  WARN  skill         多词技能只有一部分词在事实库出现(换了说法的可能性大,人工确认)
   WARN  buzzword      passionate / driven / spearheaded 等空话
 事实库中标题带 🔒 / 内部备注 / internal notes / confidential 的小节**不算证据**(那是内部备注,不能出现在对外文档里)。
 被检查文件里的 HTML 注释 <!-- … --> 不参与数字 / 技能 / 指标 / 占位符检查(渲染成 PDF 后看不见,常用来放内部备注);
@@ -39,6 +40,7 @@ INTERNAL_HEADING = re.compile(r"🔒|内部备注|内部信息|internal[- ]only|
 CONTACT = re.compile(r"\S+@\S+|\+\d[\d\s()-]{7,}\d|\b0\d{3,4}[\s-]?\d{3}[\s-]?\d{3,4}\b")
 HUMAN_LANGUAGES = {"english", "mandarin", "chinese", "cantonese", "french", "spanish", "german", "italian",
                    "japanese", "korean", "portuguese", "arabic", "hindi", "russian", "dutch", "polish", "turkish"}
+PARTIAL_SKILL_RATIO = 0.5    # 多词技能有这么多比例的实词在事实库出现,就从 FAIL 降为 WARN
 STOPWORDS = {"and", "or", "the", "of", "for", "with", "in", "on", "to", "a", "an", "via", "using"}
 METRIC = re.compile(r"\b(ARPPU|ARPU|DAU|MAU|WAU|LTV|CAC|ROAS|ROI|CTR|CVR|NPS|MRR|ARR|GMV|AOV|CPI|D(?:1|3|7|14|30|60|90))\b")
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
@@ -174,7 +176,14 @@ def check(resume: str, master: str, confidential: list[str]) -> list[Finding]:
     for num in sorted(missing, key=lambda n: resume.find(n)):
         findings.append(Finding("FAIL", "number", num, "事实库里找不到这个数字"))
     for skill in dict.fromkeys(extract_skills(resume)):
-        if not _skill_evidenced(skill, evidence, evidence_stems):
+        if _skill_evidenced(skill, evidence, evidence_stems):
+            continue
+        words = _stems(skill)
+        if len(words) >= 2 and len(words & evidence_stems) / len(words) >= PARTIAL_SKILL_RATIO:
+            # 描述性长短语,一半以上实词有出处:多半是同一件事换了说法,提醒人工确认,不拦截
+            findings.append(Finding("WARN", "skill", skill,
+                                    "只有部分词在事实库出现:确认措辞,或把这个写法补进事实库「对外关键词」"))
+        else:
             findings.append(Finding("FAIL", "skill", skill, "Skills 里的技能在事实库没有证据"))
     for metric in dict.fromkeys(METRIC.findall(resume)):
         if not re.search(r"\b" + metric + r"\b", evidence):

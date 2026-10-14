@@ -134,6 +134,33 @@ def test_multiword_skill_with_unevidenced_words_fails():
     assert [f.rule for f in findings] == ["skill"]
 
 
+def test_multiword_skill_partly_evidenced_is_a_warning():
+    # seen on a real CV: "power-based sample estimates" vs a fact base that says
+    # "power analysis … minimum sample size" — half the words are there, phrasing differs
+    master = "Ran a power analysis to set the minimum sample size."
+    findings = fc.check("**Skills:** power-based sample estimates", master, [])
+    assert [(f.level, f.rule, f.item) for f in findings] == [("WARN", "skill", "power-based sample estimates")]
+    assert "部分" in findings[0].detail
+
+
+def test_multiword_skill_mostly_unevidenced_still_fails():
+    findings = fc.check("**Skills:** Kubernetes cluster autoscaling", "Ran a small Python cluster.", [])
+    assert [(f.level, f.rule) for f in findings] == [("FAIL", "skill")]
+
+
+def test_single_word_skill_is_never_downgraded():
+    findings = fc.check("**Skills:** Kubernetes", "Python only.", [])
+    assert [(f.level, f.rule) for f in findings] == [("FAIL", "skill")]
+
+
+def test_warning_only_resume_exits_zero(tmp_path):
+    master = tmp_path / "m.md"
+    master.write_text("Ran a power analysis to set the minimum sample size.", encoding="utf-8")
+    resume = tmp_path / "r.md"
+    resume.write_text("**Skills:** power-based sample estimates", encoding="utf-8")
+    assert fc.main([str(resume), "--master", str(master)]) == 0
+
+
 def test_human_languages_are_not_checked_as_skills():
     assert fc.check("**Skills:** Python, English, Mandarin", "Python", []) == []
 
