@@ -76,7 +76,7 @@ def test_alias_restricts_the_baseline_to_the_aliased_entity():
     # aliased Anysphere UK Ltd; only the aliased entity may be watched, or the other one causes false alarms
     register = sc.load_register(BASE)
     result = sc.lookup("Sports Charity Trust", register, {"Sports Charity Trust": "Spotlightsportsgroup"}, fuzzy=False)
-    assert {m.org.name for m in result.matches} >= {"Sports Charity Trust", "Spotlightsportsgroup"}
+    assert result.hidden_namesakes == 1      # the unrelated namesake is counted, not listed (v0.6.2)
     assert set(sc._snapshot(result)["orgs"]) == {"Spotlightsportsgroup"}
 
 

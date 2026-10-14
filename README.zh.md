@@ -24,7 +24,7 @@
 
    Windows 上提示找不到 `python` 的话，把 `python` 换成 `py`；Mac 上用 `python3`。第一次运行会自动下载当天的名册（约 10 MB，十秒左右），之后一天内直接用缓存。把 JD 存成文本文件，加上 `--jd JD.txt`，还能顺便扫描 JD 里写的是愿意担保还是不担保。
 
-查不到某家公司？它可能是用另一个法人名登记的。结果里会给出 Companies House 的链接，方便你反查法人名；也欢迎[在这里提交](https://github.com/suzyeth/evidence-first-job-search/issues/new?template=sponsor-alias.yml)，我核实后加进对照表。
+❌ 的意思是**这个名字**不在名册上，不等于这家公司不能担保（比如名册里就找不到 "Amazon Web Services" 这个名字）。查不到某家公司？它可能是用另一个法人名登记的。结果里会给出 Companies House 的链接，方便你反查法人名；也欢迎[在这里提交](https://github.com/suzyeth/evidence-first-job-search/issues/new?template=sponsor-alias.yml)，我核实后加进对照表。
 
 ## 为什么做这个
 
@@ -72,6 +72,7 @@ python sweep.py new 3 --plan     # 先看要跑哪些搜索（不联网）
 python sweep.py add https://jobs.ashbyhq.com/<公司>/<岗位ID>   # 开始跟踪一个岗位
 python sweep.py live --log --prune   # 检查在跟的岗位还在不在；--prune 把确认下架的自动摘掉
 python sweep.py new 7            # 扫近 7 天的新岗，每个岗位自动标担保状态
+                                 # LinkedIn 报 429(限流)? 先用 --sites indeed 顶上，过一阵再 --resume 补跑
 python boardsweep.py --since 2026-01-01   # 每个岗位自动标担保状态 + JD 体检
 python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # 只用标准库，免安装
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md

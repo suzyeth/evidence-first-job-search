@@ -24,7 +24,7 @@ No git, no AI tool, no packages. You only need [Python 3.10+](https://www.python
 
    On Windows, use `py` if `python` isn't found; on macOS, use `python3`. The first run downloads today's register (about 10 MB, ~10 s); after that it's cached for a day. Add `--jd JD.txt` to also scan a saved job description for sponsorship wording.
 
-Can't find a company? It may be registered under a different legal name. The output links to Companies House so you can look it up, and you can [report it here](https://github.com/suzyeth/evidence-first-job-search/issues/new?template=sponsor-alias.yml) so it gets added to the alias table.
+A ❌ means **this name** isn't on the register, not that the employer can't sponsor (e.g. "Amazon Web Services" isn't listed under that name). Can't find a company? It may be registered under a different legal name. The output links to Companies House so you can look it up, and you can [report it here](https://github.com/suzyeth/evidence-first-job-search/issues/new?template=sponsor-alias.yml) so it gets added to the alias table.
 
 ## Why
 
@@ -72,6 +72,7 @@ python sweep.py new 3 --plan     # show the query matrix, no network
 python sweep.py add https://jobs.ashbyhq.com/<company>/<job-id>   # start tracking a job
 python sweep.py live --log --prune   # liveness check; --prune drops confirmed-dead jobs from tracked
 python sweep.py new 7            # new postings from the last 7 days, each tagged with sponsor status
+                                 # LinkedIn 429 (rate limited)? use --sites indeed now, rerun later with --resume
 python boardsweep.py --since 2026-01-01   # + sponsor tag and JD check on every hit
 python sponsor_check.py "Bumble" "Monzo" --jd JD.md   # stdlib only, no install
 python fact_check.py ../applications/acme/resume_acme.md --master ../master-cv-data.md

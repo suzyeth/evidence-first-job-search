@@ -337,7 +337,8 @@ def render(path: str, findings: list[Finding]) -> str:
     fails = [f for f in findings if f.level == "FAIL"]
     head = f"== {path}  " + (tr("✅ 通过", "✅ pass") if not fails
                              else tr(f"❌ {len(fails)} 项不通过", f"❌ {len(fails)} failed"))
-    lines = [head] + [f"  {'❌' if f.level == 'FAIL' else '⚠️'} [{f.rule}] {f.item} —— {f.detail}" for f in findings]
+    sep = tr(" —— ", " — ")
+    lines = [head] + [f"  {'❌' if f.level == 'FAIL' else '⚠️'} [{f.rule}] {f.item}{sep}{f.detail}" for f in findings]
     return "\n".join(lines)
 
 

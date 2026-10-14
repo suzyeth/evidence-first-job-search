@@ -458,13 +458,19 @@ def new(days=14, sites=DEFAULT_SITES, timeout=90, retries=1, resume=False,
              f"Raw {raw_count} | unique after cross-site/repost dedup {len(merged)} | filtered {excluded} | "
              f"contextual {len(contextual)} | direct title matches to review {len(relevant)}"))
     if sponsor_summary:
-        print(sponsor_summary + tr("(✅ 在册有 SW 路线 · ❓ 名字常见待查 · ⚠️ 无 SW 路线 · ❌ 查无,先查法人名)",
+        print(sponsor_summary + tr("(✅ 在册有 SW 路线 · ❓ 名字常见待查 · ⚠️ 无 SW 路线 · "
+                                   "❌ 名册里没找到这个名字(不等于不能担保,先查法人名))",
                                    " (✅ Skilled Worker route · ❓ common name, check · ⚠️ no SW route · "
-                                   "❌ not found, check the legal name)"))
+                                   "❌ this name isn't on the register (not proof they can't sponsor; "
+                                   "check the legal name))"))
     if failures:
         print(tr("\n### 未完成任务", "\n### Failed tasks"))
         for r in failures:
             print(f"  * [{r.get('site','?')}] [{r.get('track','?')}] {r.get('term','?')} — {r.get('error','unknown')}")
+        if any(r.get("site") == "linkedin" and "429" in str(r.get("error", "")) for r in failures):
+            print(tr("  LinkedIn 限流(429):先用 --sites indeed 顶上,过一两个小时再用 --resume 补跑 LinkedIn。",
+                     "  LinkedIn rate limit (429): use --sites indeed for now, then rerun LinkedIn with --resume "
+                     "in an hour or two."))
 
     by_track = {}
     for item in relevant:
@@ -635,6 +641,13 @@ def _html_title(page):
     return re.sub(r"\s*\|\s*LinkedIn\s*$", "", title)
 
 
+def pretty_slug(slug):
+    """Ashby / Lever / BambooHR 不给公司名,只有 slug:'skin-analytics' -> 'Skin Analytics'。"""
+    name = re.sub(r"\.(co\.uk|com|ai|io|co|org|net|dev|app)$", "", slug.lower())
+    name = re.sub(r"\d+$", "", re.sub(r"[-_.]+", " ", name)).strip()
+    return " ".join(w.capitalize() for w in name.split())
+
+
 def describe_job(channel, args):
     """取岗位标题和公司名做标签;取不到返回空串,不影响添加。"""
     try:
@@ -644,10 +657,10 @@ def describe_job(channel, args):
         if channel in ("ashby_id", "ashby_title"):
             d = json.loads(fetch(f"https://api.ashbyhq.com/posting-api/job-board/{args[0]}"))
             job = next((j for j in d.get("jobs", []) if args[1] in (j.get("id"), j.get("title"))), {})
-            return job.get("title", ""), args[0]
+            return job.get("title", ""), pretty_slug(args[0])
         if channel == "lever":
             d = json.loads(fetch(f"https://api.lever.co/v0/postings/{args[0]}/{args[1]}?mode=json"))
-            return d.get("text", ""), args[0]
+            return d.get("text", ""), pretty_slug(args[0])
         if channel == "workable":
             d = json.loads(fetch(f"https://apply.workable.com/api/v1/widget/accounts/{args[0]}?details=true"))
             job = next((j for j in d.get("jobs", []) if j.get("shortcode") == args[1]), {})
@@ -655,7 +668,7 @@ def describe_job(channel, args):
         if channel == "bamboohr":
             d = json.loads(fetch(f"https://{args[0]}.bamboohr.com/careers/list"))
             job = next((j for j in d.get("result", []) if str(j.get("id")) == str(args[1])), {})
-            return job.get("jobOpeningName", ""), args[0]
+            return job.get("jobOpeningName", ""), pretty_slug(args[0])
         page_url = {"linkedin": f"https://www.linkedin.com/jobs/view/{args}",
                     "teamtailor": f"https://{args[0]}.teamtailor.com/jobs/{args[1]}" if isinstance(args, list) else "",
                     "hitmarker": f"https://hitmarker.net/jobs/{args}"}.get(channel, "")

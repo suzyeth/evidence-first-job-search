@@ -214,6 +214,7 @@ class LookupResult:
     noisy: bool = False
     via_alias: str = ""
     companies_house_url: str = ""
+    hidden_namesakes: int = 0          # 别名已定位法人时,隐藏掉的同名无关机构数
 
 
 def _search(core: str, register: Register, fuzzy: bool = True) -> dict[str, Match]:
@@ -259,13 +260,17 @@ def lookup(query: str, register: Register, aliases: dict | None = None, fuzzy: b
     if legal:
         result.via_alias = legal
         alias_found = _search(core_name(legal), register, fuzzy)
-        alias_pinned = any(m.kind in ("exact", "squashed") for m in alias_found.values())
+        pinned = {n: m for n, m in alias_found.items() if m.kind in ("exact", "squashed")}
+        alias_pinned = bool(pinned)
         if alias_pinned:
-            # 别名已经精确定位到法人,商号本身的子串/近似命中只是噪音
-            found = {n: m for n, m in found.items() if m.kind == "exact"}
-        for name, m in alias_found.items():
-            if name not in found or KIND_RANK[m.kind] < KIND_RANK[found[name].kind]:
-                found[name] = m
+            # 别名已经定位到法人:结果和结论只看这个法人。商号本身命中的同名机构(Cursor -> Lincoln 的
+            # Cursor Ltd)与它无关,列出来会让人以为"Cursor 有两个法人",也可能左右结论,所以隐藏只计数
+            result.hidden_namesakes = sum(1 for n, m in found.items() if m.kind == "exact" and n not in pinned)
+            found = dict(pinned)
+        else:
+            for name, m in alias_found.items():
+                if name not in found or KIND_RANK[m.kind] < KIND_RANK[found[name].kind]:
+                    found[name] = m
 
     ranked = sorted(found.values(), key=lambda m: (KIND_RANK[m.kind], SKILLED_WORKER not in m.org.routes,
                                                    m.org.name.lower()))
@@ -360,6 +365,10 @@ def render(result: LookupResult, all_routes: bool = False) -> str:
                                    if result.via_alias else "")
     lines = [head, "  " + status_text(result.status)]
     lines += [_format_org(m, all_routes) for m in result.matches[:MAX_SHOWN]]
+    if result.hidden_namesakes:
+        n = result.hidden_namesakes
+        lines.append(tr(f"    (另有 {n} 个同名机构,与别名指向的法人无关,已隐藏)",
+                        f"    ({n} same-name {'entity' if n == 1 else 'entities'} unrelated to the alias hidden)"))
     if result.total_hits > MAX_SHOWN:
         lines.append(tr(f"    …另有 {result.total_hits - MAX_SHOWN} 条,用 --json 查看全部",
                         f"    …{result.total_hits - MAX_SHOWN} more, see --json"))

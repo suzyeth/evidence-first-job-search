@@ -6,7 +6,7 @@
 
 1. `date` 校准日期;看 `applications.md` / `FOCUS.md` 修改时间,报告上轮之后有没有新投递。
 2. `sweep.py live --log` 跑全队列存活。先看 `tools/logs/live-log.md`,如果定时任务今天已经跑过可省一次。
-3. `sweep.py new <天数>`(窗口 = 距上轮天数)跑 LinkedIn + Indeed 净新增。
+3. `sweep.py new <天数>`(窗口 = 距上轮天数)跑 LinkedIn + Indeed 净新增。LinkedIn 报 429(限流)时不要连续重试:先 `--sites indeed` 顶上,过一两个小时再 `--resume` 补 LinkedIn;覆盖率不到 95% 不算跑完。
 4. `boardsweep.py` 补扫雇主板(聚合站漏掉的岗主要靠这一步)。
 5. 新岗逐 JD 过 5 道 Gate(见 SKILL.md),**年限数字和硬门槛优先看**。
 6. 回写 `applications.md`"第 N 轮"段 + `FOCUS.md`;DEAD 的当场从 `sweep_config.json` 的 `tracked` 摘掉。

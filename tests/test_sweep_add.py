@@ -62,14 +62,14 @@ def test_describe_greenhouse(monkeypatch):
 def test_describe_ashby_upgrades_to_title_channel(monkeypatch):
     monkeypatch.setattr(sw, "fetch", fake_fetch({"job-board/cursor": {"jobs": [
         {"id": "u1", "title": "Forward Deployed Engineer - EMEA", "isListed": True}]}}))
-    assert sw.describe_job("ashby_id", ["cursor", "u1"]) == ("Forward Deployed Engineer - EMEA", "cursor")
+    assert sw.describe_job("ashby_id", ["cursor", "u1"]) == ("Forward Deployed Engineer - EMEA", "Cursor")
 
 
 def test_describe_lever_and_workable(monkeypatch):
     monkeypatch.setattr(sw, "fetch", fake_fetch({
         "api.lever.co/v0/postings/palantir/p1": {"text": "FD AI Engineer"},
         "accounts/wk": {"name": "Spotlight", "jobs": [{"shortcode": "AB", "title": "Data Analyst"}]}}))
-    assert sw.describe_job("lever", ["palantir", "p1"]) == ("FD AI Engineer", "palantir")
+    assert sw.describe_job("lever", ["palantir", "p1"]) == ("FD AI Engineer", "Palantir")
     assert sw.describe_job("workable", ["wk", "AB"]) == ("Data Analyst", "Spotlight")
 
 

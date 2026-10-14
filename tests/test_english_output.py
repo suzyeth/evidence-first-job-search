@@ -26,7 +26,8 @@ def english(monkeypatch):
 
 
 def assert_no_chinese(text):
-    leftovers = sorted({line for line in text.splitlines() if CJK.search(line)})
+    # "——" (Chinese double em dash) isn't a CJK character but is still Chinese typography (v0.6.2 trial run)
+    leftovers = sorted({line for line in text.splitlines() if CJK.search(line) or "——" in line})
     assert not leftovers, "untranslated output:\n" + "\n".join(leftovers)
 
 

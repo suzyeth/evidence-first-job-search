@@ -83,13 +83,26 @@ def wanted(title: str, location: str, stamp: str | None, f: Filters) -> bool:
                 and on_or_after(stamp, f.since))
 
 
+def _ashby_location(job: dict) -> str:
+    """'London; New York, United States' —— 次要地点是 [{location, address{postalAddress{addressCountry}}}],
+    以前直接 str() 了整个列表,输出成 Python 的 [{'location': …}]。"""
+    places = [job.get("location") or ""]
+    for extra in job.get("secondaryLocations") or []:
+        if not isinstance(extra, dict):
+            continue
+        country = ((extra.get("address") or {}).get("postalAddress") or {}).get("addressCountry")
+        name = extra.get("location") or ""
+        places.append(f"{name}, {country}" if country and country not in name else name)
+    return "; ".join(dict.fromkeys(p for p in places if p))
+
+
 def ashby_hits(slug: str, data: dict, f: Filters) -> list[Hit]:
     out = []
     for j in data.get("jobs", []):
         if j.get("isListed") is False:
             continue
         title = j.get("title", "")
-        loc = (str(j.get("location", "")) + " " + str(j.get("secondaryLocations", ""))).strip()
+        loc = _ashby_location(j)
         stamp = j.get("publishedAt")
         if wanted(title, loc, stamp, f):
             comp = (j.get("compensation") or {}).get("compensationTierSummary") or ""

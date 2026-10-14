@@ -21,7 +21,7 @@
     {"label": "示例 LinkedIn 镜像",  "channel": "linkedin",    "args": "<linkedin-job-id>"}
   ],
 
-  "exclude_title_regex": "senior|staff|lead|principal|head of|director|manager,|vp |vice president|intern(ship)?|field engineer|undergraduate|placement year",
+  "exclude_title_regex": "senior|\\bsr\\b|staff|lead|principal|head of|director|manager,|vp |vice president|intern(ship)?|field engineer|undergraduate|placement year",
   "noise_company_regex": "jobster|crossing hurdles|hackajob|freecash",
   "agency_company_regex": "harnham|la fosse|harvey nash|understanding recruitment|european tech recruit",
 
