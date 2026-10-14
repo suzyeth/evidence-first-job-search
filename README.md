@@ -85,7 +85,16 @@ Your configs, logs and fact base are listed in `.gitignore`. Tests run offline: 
 
 ## Other countries
 
-Change the locations and `indeed_country_*` in `sweep_config.json`, then replace the right-to-work section of `references/sweep-runbook.md` and the salary bands in `references/salary-negotiation.md` with local equivalents.
+| Works anywhere | UK only |
+|---|---|
+| `sweep.py` discovery (LinkedIn + Indeed, ~60 Indeed countries via JobSpy), `boardsweep.py`, `sweep.py add` / `live`, `fact_check.py`, and `jd_check.py`'s sponsorship wording, hidden seniority and years checks | `sponsor_check.py` (gov.uk register), `jd_check.py`'s salary thresholds (£, Skilled Worker) and SC/DV clearance flag, and the right-to-work / salary reference docs |
+
+To search, say, Germany:
+
+- **`sweep_config.json`**: put the location in each query (e.g. `["DA", "data analyst", "Berlin, Germany"]`). `indeed_country_by_location` maps it to JobSpy's Indeed country; the example already covers Germany, the Netherlands, Ireland, France, Spain, Canada, Australia, Singapore, the US and China. Add more with the country names JobSpy accepts.
+- **`boardsweep_config.json`**: set `location_regex` to e.g. `"berlin|munich|germany|remote.*(europe|emea)"`. Country codes from feeds (`DE`, `NL`…) are expanded to names first, so word filters match.
+- Pass `--no-sponsor` to skip UK register tags, and treat the salary flag as UK-specific.
+- Replace the right-to-work section of `references/sweep-runbook.md` and the salary bands in `references/salary-negotiation.md` with local equivalents.
 
 ## Acknowledgements
 

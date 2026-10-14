@@ -1,5 +1,5 @@
 {
-  "_readme": "复制为 sweep_config.json 后填写。queries = [赛道代码, 搜索词, 地点];tracked = 正在跟踪存活的岗位。词表纪律:只加真实产出过岗位的词。",
+  "_readme": "复制为 sweep_config.json 后填写。queries = [赛道代码, 搜索词, 地点];tracked = 正在跟踪存活的岗位。词表纪律:只加真实产出过岗位的词。indeed_country_by_location:地点正则 → JobSpy 的 Indeed 国家名(germany / netherlands / ireland / usa / uk 等,见 JobSpy 的 Country 列表);都没匹配上时用 indeed_country_default。",
 
   "queries": [
     ["GD",  "game designer",             "United Kingdom"],
@@ -37,6 +37,14 @@
   "indeed_country_default": "UK",
   "indeed_country_by_location": {
     "\\bchina\\b|中国": "China",
-    "\\busa?\\b|united states": "USA"
+    "\\busa?\\b|united states": "USA",
+    "\\bgermany\\b|deutschland": "Germany",
+    "\\bnetherlands\\b|\\bholland\\b": "Netherlands",
+    "\\bireland\\b": "Ireland",
+    "\\bfrance\\b": "France",
+    "\\bspain\\b": "Spain",
+    "\\bcanada\\b": "Canada",
+    "\\baustralia\\b": "Australia",
+    "\\bsingapore\\b": "Singapore"
   }
 }

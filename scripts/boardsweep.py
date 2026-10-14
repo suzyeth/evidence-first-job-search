@@ -28,6 +28,7 @@ if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 import jd_check  # noqa: E402  (same folder)
 from i18n import apply_lang_arg, tr  # noqa: E402
+from countries import country_name  # noqa: E402
 
 DEFAULT_MAX_YEARS = 3
 
@@ -118,6 +119,9 @@ def lever_hits(slug: str, data: list, f: Filters) -> list[Hit]:
         cats = j.get("categories") or {}
         places = [cats.get("location"), *(cats.get("allLocations") or [])]
         loc = "; ".join(dict.fromkeys(p for p in places if p))   # allLocations 常常重复主地点
+        country = country_name(j.get("country"))                  # Lever 给的是代码(NL),地点里没写国名时补上
+        if country and country.lower() not in loc.lower():
+            loc = f"{loc}; {country}" if loc else country
         created = j.get("createdAt")
         stamp = datetime.fromtimestamp(created / 1000, timezone.utc).isoformat() if created else None
         title = j.get("text", "")
@@ -140,7 +144,6 @@ def workable_hits(slug: str, data: dict, f: Filters) -> list[Hit]:
     return out
 
 
-COUNTRY_CODES = {"GB": "United Kingdom", "UK": "United Kingdom", "IE": "Ireland", "US": "United States"}
 
 
 def teamtailor_hits(slug: str, data: dict, f: Filters) -> list[Hit]:
@@ -150,7 +153,7 @@ def teamtailor_hits(slug: str, data: dict, f: Filters) -> list[Hit]:
         posting = item.get("_jobposting") or {}
         places = [(p.get("address") or {}) for p in posting.get("jobLocation") or []]
         loc = "; ".join(", ".join(x for x in (a.get("addressLocality"),
-                                              COUNTRY_CODES.get(a.get("addressCountry"), a.get("addressCountry"))) if x)
+                                              country_name(a.get("addressCountry"))) if x)
                         for a in places)
         title, stamp = item.get("title", ""), item.get("date_published")
         if wanted(title, loc, stamp, f):

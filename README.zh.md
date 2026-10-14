@@ -85,7 +85,16 @@ python sponsor_check.py "Bumble" --lang en                 # 英文输出（所�
 
 ## 换成别的国家
 
-改 `sweep_config.json` 里的地点和 `indeed_country_*`,再把 `references/sweep-runbook.md` 的工作许可一节和 `references/salary-negotiation.md` 的薪资区间换成当地的。
+| 哪国都能用 | 只支持英国 |
+|---|---|
+| `sweep.py` 扫新岗（LinkedIn + Indeed,JobSpy 支持约 60 个国家的 Indeed）、`boardsweep.py`、`sweep.py add` / `live`、`fact_check.py`,以及 `jd_check.py` 里的担保措辞、隐藏 Senior、年限检查 | `sponsor_check.py`(gov.uk 担保名册）、`jd_check.py` 的薪资门槛（英镑、Skilled Worker 标准）和 SC/DV 安全审查标记，以及工作许可 / 薪资相关的参考文档 |
+
+以德国为例：
+
+- **`sweep_config.json`**:每条搜索写上地点，比如 `["DA", "data analyst", "Berlin, Germany"]`。`indeed_country_by_location` 负责把地点对应到 JobSpy 的 Indeed 国家；示例里已经配了德国、荷兰、爱尔兰、法国、西班牙、加拿大、澳大利亚、新加坡、美国和中国，其他国家按 JobSpy 认的国名自己加。
+- **`boardsweep_config.json`**:把 `location_regex` 改成比如 `"berlin|munich|germany|remote.*(europe|emea)"`。招聘板返回的国家代码（`DE`、`NL` 等）会先转成国名，所以按单词写的过滤能匹配上。
+- 加 `--no-sponsor` 跳过英国担保名册标注；薪资门槛标记只对英国有意义。
+- 把 `references/sweep-runbook.md` 的工作许可一节和 `references/salary-negotiation.md` 的薪资区间换成当地的。
 
 ## 致谢
 
