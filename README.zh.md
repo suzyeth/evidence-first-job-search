@@ -36,6 +36,10 @@
 
 ## 工作流程
 
+### 可直接填写：JD → CV → 故事库 → 面试
+
+打开[求职执行模板包](templates/career-workbook/README.md)：四份Markdown文件，每份包含空白表格和完整虚构示例。支持要求—事实—简历—故事追溯、中文/英文CV改写、STAR故事卡、模拟追问及复盘。真实填写内容保存在私有工作区，示例不进入真实履历。详细操作见[面试工作流](references/interview-workflow.md)。
+
 ### 1. 找岗位
 
 ```bash
@@ -75,7 +79,7 @@ python sponsor_check.py --add-alias "Bumble" "Badoo Limited"
 
 ### 5. 定制简历，再做事实核对
 
-从你的**事实库**（`templates/master-cv-data.md`）出发。按 JD 定制简历时，只改开头一句、技能行和要点顺序，事实一律不动。改完运行：
+从你的**事实库**（新建时参考 `templates/master-cv-data.md`）出发。按 JD 调整开头、技能行和要点顺序，也可有据地改写条目措辞；事实、责任和数字归属一律不动。改完运行：
 
 ```bash
 python fact_check.py ../applications/acme/resume_acme.md   # 会自动向上找 master-cv-data.md

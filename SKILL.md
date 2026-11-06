@@ -1,13 +1,13 @@
 ---
 name: job-search
-description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 + 雇主 ATS 板直查)、已跟踪岗位存活检查、JD 驱动的简历/求职信定制、投前简历五维评审、PDF 渲染与投递追踪状态机。当用户说"跑一下求职""扫新岗""查队列死活""按这个 JD 改简历""评一下这份简历""渲简历 PDF""记一笔投递"、或任何涉及找工作/投递/简历定制/岗位筛选的任务时调用。
+description: 求职作战系统——岗位发现与存活检查、JD拆解、证据驱动的CV与求职信改写、简历评审、故事库、面试回答与模拟追问、PDF渲染和投递追踪。用于找工作、岗位筛选、改简历、整理求职故事、准备面试或记录投递；普通职业闲聊无需加载整个工作流。
 ---
 
 # Job Search 作战系统
 
 > 本文件写给 AI 助手读(Claude Code、Codex、Cursor、Gemini CLI,或贴进任何聊天 AI 都可以)。顶部的 frontmatter 供支持 skill 的工具自动识别,其他工具可以忽略。
 
-一套"发现 → 筛选 → 定制 → 评审 → 投递 → 追踪"的闭环。核心信条:
+一套"发现 → 筛选 → 定制 → 评审 → 投递 → 面试 → 复盘"的闭环。核心信条:
 
 1. **聚合站只负责召回,雇主 ATS 才是真相。** LinkedIn/Indeed 上活着 ≠ 岗位活着;镜像死了也 ≠ 岗位死了。
 2. **事实只有一个源头。** 所有简历都从 `master-cv-data.md` 往下派生,下游永远不能出现源头没有的声明。
@@ -17,6 +17,8 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
 ---
 
 ## 0. 首次使用:搭工作区
+
+已有工作区时先复用现有文件，事实库也可能位于 `shared/master-cv-data.md`。不要重新初始化或覆盖历史故事。只需要模板时直接进入[模板四件套](templates/career-workbook/README.md)；JD拆解、CV改写、故事库和面试训练按[面试工作流](references/interview-workflow.md)选择对应模板，不必加载扫描规程。
 
 在用户选定的私有目录(**不要**放进任何公开 git 仓库)里按 `templates/` 建骨架:
 
@@ -33,7 +35,7 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
 └── tools/                     ← scripts/ 下的全部脚本及配置
 ```
 
-然后让用户填 `master-cv-data.md` 和 `tools/sweep_config.json`(赛道、关键词、地点、跟踪岗位)。**在这两份填好之前不要跑任何定制或扫描**——没有事实库就没有真实性校验。
+真实简历定制需要已确认的 `master-cv-data.md`；岗位扫描需要相应工具配置。扫描配置不是CV或面试工作的前置条件。空白模板和明确标注的教学示例可直接创建；个人事实不足时仅保留待确认草稿，不生成虚构的可投递材料。
 
 `prompts/cv-reviewer.md` 是独立评审用的 prompt,文件开头写了在不同 AI 工具里怎么用。
 
@@ -72,7 +74,7 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
 1. 抓 JD 原文存 `applications/<slug>/JD.md`(带 source URL + 日期)——岗位下线后这是唯一记录。
 2. 抽 **5 类 signal**:title 关键词 / 职责动词 / 必备技能 / 领域 / 价值观信号。
 3. 每条 signal 对照 `master-cv-data.md`:✅ 有证据 → 可强调;⚠️ 做过但没记 → **先补 master-cv** 再用;❌ 没做过 → 不加,无论 JD 多想要。
-4. 简历只改三处:**Summary 首句、Skills 关键词、bullet 顺序**。经历事实不改。
+4. 默认调整Summary、Skills与bullet顺序；需要时可重写bullet措辞，用[CV改写表](templates/career-workbook/02-cv-rewrite.md)记录JD要求和事实出处。职位、任期、责任、工具使用、数字及成果归属不变。
 5. 求职信 Para 2 = 这家公司的差异点(每句链回 JD 原文);Para 3 = 2–3 个最对位的证据项目。
 6. 写作风格按 [references/tone.md](references/tone.md):具体胜抽象、动词胜形容词、数字胜声明。
 
@@ -105,6 +107,12 @@ description: 求职作战系统——岗位发现(LinkedIn/Indeed 增量扫描 +
 ---
 
 ## 6. 投递之后
+
+### 故事库与面试准备
+
+读 [references/interview-workflow.md](references/interview-workflow.md)。按需使用 [JD拆解](templates/career-workbook/01-jd-analysis.md)、[CV改写](templates/career-workbook/02-cv-rewrite.md)、[故事库](templates/career-workbook/03-story-bank.md)和[面试提纲](templates/career-workbook/04-interview-outline.md)，每份附完整虚构示例。
+
+把要求R、事实E、简历B和故事S连接起来。事实库是唯一权威；原有故事先核实再复用。模拟时一次问一题并根据用户实际回答追问；完整题纲请求直接输出题纲。不虚构冲突、成果或公司研究，不把教学示例变成用户经历。
 
 | 场景 | 读哪份 |
 |------|--------|

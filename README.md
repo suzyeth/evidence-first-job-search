@@ -36,6 +36,10 @@ You need [Python 3.10+](https://www.python.org/downloads/) and nothing else (on 
 
 ## The workflow
 
+### Fillable JD, CV, story-bank and interview templates
+
+The [career workbook](templates/career-workbook/README.md) contains four Chinese-language Markdown templates, each with a complete fictional example. It links job requirements to verified facts, CV bullets, stories and interview answers. Includes English CV examples, follow-up questions and practice reviews. Keep completed personal copies in a private workspace. See the [interview workflow](references/interview-workflow.md) for integration with existing materials.
+
 ### 1. Find jobs
 
 ```bash
@@ -75,7 +79,7 @@ python sponsor_check.py --add-alias "Bumble" "Badoo Limited"
 
 ### 5. Tailor your CV and fact-check it
 
-Start from your **fact base** (`templates/master-cv-data.md`). Tailor each CV to the JD by changing only the summary, the skills line and the bullet order, never the facts. Then:
+Start from your existing **fact base** (use `templates/master-cv-data.md` when creating one). Tailor the summary, skills and bullet order; evidence-backed bullet rewrites are also allowed. Never change facts, responsibility or metric attribution. Then:
 
 ```bash
 python fact_check.py ../applications/acme/resume_acme.md   # finds master-cv-data.md in a parent folder

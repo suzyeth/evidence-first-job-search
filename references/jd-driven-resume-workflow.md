@@ -42,7 +42,7 @@ JD.md 必须包含:source URL + 日期、职责原文(引用,不意译)、Requir
 - ⚠️ master-cv 没记**但确实做过** → **先回去补 master-cv**,再用到派生简历
 - ❌ master-cv 没有**且没做过** → **不能加**(无论 JD 多想要)
 
-## Step 4 — 简历局部调整(只改这三处)
+## Step 4 — 简历调整与有证据的改写
 
 改:
 - **Summary 首句**:JD 最关心的 1–2 个关键词出现在前 10 个词
@@ -50,6 +50,8 @@ JD.md 必须包含:source URL + 日期、职责原文(引用,不意译)、Requir
 - **Bullet 顺序**:JD 关心的 bullet 提到每段前面
 
 不改:工作经历事实、教育、项目事实(可以调强调,不能改事实)。
+
+需要改写bullet时使用[CV改写表](../templates/career-workbook/02-cv-rewrite.md)：记录原文、JD要求、事实库定位、中英文新表述和追问。允许把含糊描述改成具体行动、方法和产物，不改变职位、任期、责任范围或成果归属。没有测量依据时不加效果数字。JD完整拆解见[模板01](../templates/career-workbook/01-jd-analysis.md)，故事与面试准备见[面试工作流](interview-workflow.md)。
 
 ## Step 5 — 求职信
 
@@ -80,4 +82,4 @@ JD.md 必须包含:source URL + 日期、职责原文(引用,不意译)、Requir
 
 ## 投出后
 
-立刻在 `applications.md` 加一行,状态 📝 → ✉️;同步 `SUBMIT-QUEUE.md` 打勾和 `FOCUS.md`。
+只有用户确认实际投出后，才在 `applications.md` 记为 ✉️ Applied，并同步 `SUBMIT-QUEUE.md` 和 `FOCUS.md`。完成草稿或练习不等于已投递。
