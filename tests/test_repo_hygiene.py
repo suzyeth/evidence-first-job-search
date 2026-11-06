@@ -10,13 +10,15 @@ from conftest import HERE
 
 ROOT = os.path.dirname(HERE)
 PATTERNS = ["scripts/*.py", "scripts/*.json", "tests/*.py", "tests/fixtures/*", "*.md", "references/*.md",
-            "templates/*", ".github/workflows/*.yml", ".github/ISSUE_TEMPLATE/*.yml"]
+            "templates/*", "templates/*/*", ".github/workflows/*.yml", ".github/ISSUE_TEMPLATE/*.yml"]
 
 
 def test_no_control_characters():
     offenders = []
     for pattern in PATTERNS:
         for path in glob.glob(os.path.join(ROOT, pattern)):
+            if not os.path.isfile(path):
+                continue
             with open(path, encoding="utf-8") as f:
                 for number, line in enumerate(f, 1):
                     bad = [hex(ord(c)) for c in line if ord(c) < 32 and c not in "\n\t\r"]
