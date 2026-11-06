@@ -1,5 +1,5 @@
 {
-  "_readme": "商号 → 名册里登记的英国法人名。每条都在 2026-10-13 的 gov.uk 名册中核实存在。查到新的映射就往这里加(Companies House 可查法人名)。",
+  "_readme": "商号 → 名册里登记的英国法人名。每条都在 2026-10-13 的 gov.uk 名册中核实存在。查到新的映射就往这里加(Companies House 可查法人名)。 2026-10-20 补:Sainsbury's / Nectar360 → J Sainsbury Plc(Companies House:J SAINSBURY PLC 00185647 在册;SAINSBURY'S SUPERMARKETS LTD 03261722 与 NECTAR 360 LIMITED 04224736 均不在名册);Go-Ahead London → London General Transport Services(02328489);Gousto → SCA Investments t/a Gousto;Heathrow → Heathrow Airport Holdings Ltd;ICF → ICF Consulting Services Limited(04161656,名册唯一 ICF 命中,是否即雇主法人待 offer 阶段核)。",
   "Bumble": "Badoo Limited",
   "Zego": "EXTRACOVER LIMITED",
   "Compare the Market": "BGL Group Ltd",
@@ -19,5 +19,11 @@
   "Monzo": "Monzo Bank Ltd",
   "Cursor": "Anysphere UK Ltd",
   "Faculty": "Faculty Science Limited",
-  "Sky": "Sky UK Limited"
+  "Sky": "Sky UK Limited",
+  "Sainsbury's": "J Sainsbury Plc",
+  "Nectar360": "J Sainsbury Plc",
+  "Go-Ahead London": "London General Transport Services",
+  "Gousto": "SCA Investments t/a Gousto",
+  "Heathrow": "Heathrow Airport Holdings Ltd",
+  "ICF": "ICF Consulting Services Limited"
 }
