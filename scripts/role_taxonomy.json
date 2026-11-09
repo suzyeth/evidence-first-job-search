@@ -1,0 +1,1038 @@
+{
+  "_readme": "岗位族谱 · keyword_suggest.py 用它把事实库里的证据对到岗位名。signals = 技能信号(any 里任一词在事实库出现即算有证据,中英文都可);families = 岗位族,needs = 这一族看重的信号,key = 其中分量加倍的核心信号,titles = 常见标题变体(level: entry / mid)。可以自由增删;加新标题时只加真实招聘里见过的写法。",
+  "signals": {
+    "sql": {
+      "zh": "SQL",
+      "en": "SQL",
+      "any": [
+        "sql",
+        "postgres",
+        "mysql",
+        "bigquery",
+        "duckdb",
+        "clickhouse",
+        "snowflake"
+      ]
+    },
+    "python": {
+      "zh": "Python",
+      "en": "Python",
+      "any": [
+        "python",
+        "pandas",
+        "openpyxl",
+        "jupyter"
+      ]
+    },
+    "excel": {
+      "zh": "Excel / 表格建模",
+      "en": "Excel / spreadsheet models",
+      "any": [
+        "excel",
+        "spreadsheet",
+        "google sheets",
+        "vlookup",
+        "pivot",
+        "表格"
+      ]
+    },
+    "dashboards": {
+      "zh": "看板 / BI",
+      "en": "Dashboards / BI",
+      "any": [
+        "dashboard",
+        "power bi",
+        "tableau",
+        "looker",
+        "看板",
+        "报表",
+        "thinkingdata"
+      ]
+    },
+    "experiment": {
+      "zh": "实验 / 统计检验",
+      "en": "Experiments / statistics",
+      "any": [
+        "a/b",
+        "ab test",
+        "experiment",
+        "significance",
+        "hypothesis",
+        "z-test",
+        "regression",
+        "实验",
+        "显著性"
+      ]
+    },
+    "funnel": {
+      "zh": "漏斗 / 留存 / 分群",
+      "en": "Funnels / retention / cohorts",
+      "any": [
+        "funnel",
+        "retention",
+        "cohort",
+        "segment",
+        "churn",
+        "漏斗",
+        "留存",
+        "分群"
+      ]
+    },
+    "pricing": {
+      "zh": "定价 / 商业化",
+      "en": "Pricing / monetisation",
+      "any": [
+        "pricing",
+        "price point",
+        "monetisation",
+        "monetization",
+        "offer",
+        "bundle",
+        "arpu",
+        "arppu",
+        "paying",
+        "定价",
+        "付费",
+        "商业化",
+        "礼包"
+      ]
+    },
+    "revenue": {
+      "zh": "收入分析 / 预测",
+      "en": "Revenue analysis / forecasting",
+      "any": [
+        "revenue",
+        "forecast",
+        "ltv",
+        "cpa",
+        "unit economics",
+        "margin",
+        "收入",
+        "营收",
+        "预测"
+      ]
+    },
+    "data_modelling": {
+      "zh": "数据建模 / 管线",
+      "en": "Data modelling / pipelines",
+      "any": [
+        "dbt",
+        "etl",
+        "elt",
+        "data model",
+        "pipeline",
+        "warehouse",
+        "airflow",
+        "数据管线"
+      ]
+    },
+    "data_quality": {
+      "zh": "数据质量 / 口径核对",
+      "en": "Data quality / reconciliation",
+      "any": [
+        "reconcil",
+        "data quality",
+        "validation",
+        "kpi definition",
+        "口径",
+        "对账",
+        "核对"
+      ]
+    },
+    "llm": {
+      "zh": "LLM 应用",
+      "en": "LLM applications",
+      "any": [
+        "llm",
+        "gpt",
+        "claude",
+        "gemini",
+        "openai",
+        "bedrock",
+        "prompt",
+        "大模型"
+      ]
+    },
+    "agents": {
+      "zh": "Agent / 工具调用",
+      "en": "Agents / tool use",
+      "any": [
+        "agent",
+        "mcp",
+        "tool use",
+        "function calling",
+        "langchain",
+        "langgraph"
+      ]
+    },
+    "rag": {
+      "zh": "检索 / RAG",
+      "en": "Retrieval / RAG",
+      "any": [
+        "rag",
+        "retrieval",
+        "vector",
+        "embedding",
+        "semantic search",
+        "检索"
+      ]
+    },
+    "evaluation": {
+      "zh": "模型评测",
+      "en": "Model evaluation",
+      "any": [
+        "eval",
+        "llm-as-judge",
+        "judge",
+        "labelled",
+        "labeled",
+        "precision",
+        "recall",
+        "benchmark",
+        "red team",
+        "jailbreak",
+        "评测",
+        "evaluat"
+      ]
+    },
+    "web_backend": {
+      "zh": "后端 / API",
+      "en": "Backend / APIs",
+      "any": [
+        "fastapi",
+        "flask",
+        "django",
+        "rest api",
+        "node",
+        "express",
+        "api"
+      ]
+    },
+    "frontend": {
+      "zh": "前端",
+      "en": "Front end",
+      "any": [
+        "react",
+        "next.js",
+        "typescript",
+        "javascript",
+        "vue",
+        "html"
+      ]
+    },
+    "deployment": {
+      "zh": "部署 / 云",
+      "en": "Deployment / cloud",
+      "any": [
+        "docker",
+        "cloud run",
+        "aws",
+        "gcp",
+        "azure",
+        "vercel",
+        "render",
+        "kubernetes",
+        "deployed",
+        "部署"
+      ]
+    },
+    "testing": {
+      "zh": "自动化测试",
+      "en": "Automated testing",
+      "any": [
+        "pytest",
+        "vitest",
+        "jest",
+        "unit test",
+        "regression test",
+        "playwright",
+        "cypress",
+        "selenium",
+        "测试"
+      ]
+    },
+    "qa_manual": {
+      "zh": "走查 / QA",
+      "en": "Playtesting / QA",
+      "any": [
+        "walkthrough",
+        "playtest",
+        "qa",
+        "bug",
+        "repro",
+        "走查",
+        "测试用例"
+      ]
+    },
+    "ci": {
+      "zh": "Git / CI",
+      "en": "Git / CI",
+      "any": [
+        "git",
+        "github actions",
+        "ci",
+        "pull request"
+      ]
+    },
+    "game_design": {
+      "zh": "游戏系统设计",
+      "en": "Game systems design",
+      "any": [
+        "game design",
+        "systems design",
+        "progression",
+        "economy",
+        "level design",
+        "游戏策划",
+        "系统策划",
+        "数值"
+      ]
+    },
+    "live_ops": {
+      "zh": "运营活动 / Live ops",
+      "en": "Live ops / events",
+      "any": [
+        "live ops",
+        "liveops",
+        "live-ops",
+        "event",
+        "season",
+        "battle pass",
+        "活动",
+        "运营"
+      ]
+    },
+    "game_engine": {
+      "zh": "游戏引擎",
+      "en": "Game engines",
+      "any": [
+        "unity",
+        "unreal",
+        "godot",
+        "c#",
+        "blueprint",
+        "three.js"
+      ]
+    },
+    "stakeholders": {
+      "zh": "跨团队沟通 / 汇报",
+      "en": "Stakeholders / presenting",
+      "any": [
+        "stakeholder",
+        "present",
+        "presentation",
+        "leadership",
+        "cross-functional",
+        "汇报",
+        "评审",
+        "跨部门"
+      ]
+    },
+    "requirements": {
+      "zh": "需求 / 规格文档",
+      "en": "Requirements / specs",
+      "any": [
+        "requirement",
+        "spec",
+        "user stor",
+        "prd",
+        "需求",
+        "规格",
+        "文档",
+        "specs",
+        "specification"
+      ]
+    },
+    "documentation": {
+      "zh": "文档 / 教程",
+      "en": "Docs / tutorials",
+      "any": [
+        "readme",
+        "documentation",
+        "tutorial",
+        "quickstart",
+        "教程",
+        "说明"
+      ]
+    },
+    "customer": {
+      "zh": "客户 / 用户沟通",
+      "en": "Customer-facing work",
+      "any": [
+        "client",
+        "customer-facing",
+        "customer success",
+        "onboard",
+        "user interview",
+        "user research",
+        "客户",
+        "用户访谈"
+      ]
+    },
+    "teaching": {
+      "zh": "培训 / 带人上手",
+      "en": "Training others",
+      "any": [
+        "walked colleagues",
+        "trained colleagues",
+        "training session",
+        "workshop",
+        "mentor",
+        "taught",
+        "培训",
+        "带同事",
+        "带新人"
+      ]
+    },
+    "automation": {
+      "zh": "流程自动化",
+      "en": "Workflow automation",
+      "any": [
+        "automat",
+        "script",
+        "workflow",
+        "cron",
+        "自动化",
+        "脚本"
+      ]
+    },
+    "research": {
+      "zh": "调研 / 竞品分析",
+      "en": "Research / competitor analysis",
+      "any": [
+        "research",
+        "competitor",
+        "benchmark",
+        "survey",
+        "调研",
+        "竞品"
+      ]
+    },
+    "chinese": {
+      "zh": "中文",
+      "en": "Mandarin / Chinese",
+      "any": [
+        "mandarin",
+        "chinese",
+        "中文",
+        "普通话"
+      ]
+    }
+  },
+  "families": [
+    {
+      "id": "product_analytics",
+      "track": "DA",
+      "zh": "产品 / 数据分析",
+      "en": "Product & data analytics",
+      "needs": [
+        "sql",
+        "python",
+        "dashboards",
+        "funnel",
+        "experiment",
+        "data_quality",
+        "stakeholders"
+      ],
+      "key": [
+        "sql",
+        "funnel"
+      ],
+      "titles": [
+        {
+          "t": "data analyst",
+          "level": "entry"
+        },
+        {
+          "t": "junior data analyst",
+          "level": "entry"
+        },
+        {
+          "t": "product analyst",
+          "level": "mid"
+        },
+        {
+          "t": "insight analyst",
+          "level": "entry"
+        },
+        {
+          "t": "insights analyst",
+          "level": "entry"
+        },
+        {
+          "t": "analytics and insights analyst",
+          "level": "mid"
+        },
+        {
+          "t": "data and insight analyst",
+          "level": "mid"
+        },
+        {
+          "t": "performance analyst",
+          "level": "entry"
+        },
+        {
+          "t": "reporting analyst",
+          "level": "entry"
+        },
+        {
+          "t": "mi analyst",
+          "level": "entry"
+        },
+        {
+          "t": "junior analyst",
+          "level": "entry"
+        }
+      ]
+    },
+    {
+      "id": "commercial_analytics",
+      "track": "DA",
+      "zh": "商业 / 定价分析",
+      "en": "Commercial & pricing analytics",
+      "needs": [
+        "pricing",
+        "revenue",
+        "excel",
+        "sql",
+        "dashboards",
+        "stakeholders"
+      ],
+      "key": [
+        "pricing",
+        "revenue"
+      ],
+      "titles": [
+        {
+          "t": "commercial analyst",
+          "level": "entry"
+        },
+        {
+          "t": "pricing analyst",
+          "level": "entry"
+        },
+        {
+          "t": "revenue analyst",
+          "level": "entry"
+        },
+        {
+          "t": "commercial insight analyst",
+          "level": "mid"
+        },
+        {
+          "t": "revenue growth management analyst",
+          "level": "mid"
+        },
+        {
+          "t": "monetisation analyst",
+          "level": "mid"
+        },
+        {
+          "t": "commercial and strategy analyst",
+          "level": "mid"
+        },
+        {
+          "t": "business analyst",
+          "level": "entry"
+        }
+      ]
+    },
+    {
+      "id": "growth_analytics",
+      "track": "DA",
+      "zh": "增长 / 用户分析",
+      "en": "Growth & customer analytics",
+      "needs": [
+        "funnel",
+        "experiment",
+        "sql",
+        "dashboards",
+        "revenue"
+      ],
+      "key": [
+        "funnel",
+        "experiment"
+      ],
+      "titles": [
+        {
+          "t": "growth analyst",
+          "level": "mid"
+        },
+        {
+          "t": "crm analyst",
+          "level": "entry"
+        },
+        {
+          "t": "customer insight analyst",
+          "level": "entry"
+        },
+        {
+          "t": "marketing analyst",
+          "level": "entry"
+        },
+        {
+          "t": "player insights analyst",
+          "level": "mid"
+        },
+        {
+          "t": "user research analyst",
+          "level": "entry"
+        }
+      ]
+    },
+    {
+      "id": "bi_engineering",
+      "track": "DA",
+      "zh": "BI / 分析工程",
+      "en": "BI & analytics engineering",
+      "needs": [
+        "sql",
+        "data_modelling",
+        "dashboards",
+        "ci",
+        "data_quality",
+        "python"
+      ],
+      "key": [
+        "sql",
+        "data_modelling"
+      ],
+      "titles": [
+        {
+          "t": "analytics engineer",
+          "level": "mid"
+        },
+        {
+          "t": "bi analyst",
+          "level": "entry"
+        },
+        {
+          "t": "bi developer",
+          "level": "mid"
+        },
+        {
+          "t": "power bi developer",
+          "level": "mid"
+        },
+        {
+          "t": "data quality analyst",
+          "level": "entry"
+        },
+        {
+          "t": "junior data engineer",
+          "level": "entry"
+        }
+      ]
+    },
+    {
+      "id": "applied_ai",
+      "track": "AI",
+      "zh": "应用 AI 工程",
+      "en": "Applied AI engineering",
+      "needs": [
+        "llm",
+        "agents",
+        "python",
+        "web_backend",
+        "evaluation",
+        "deployment",
+        "rag",
+        "testing"
+      ],
+      "key": [
+        "llm",
+        "python"
+      ],
+      "titles": [
+        {
+          "t": "ai engineer",
+          "level": "mid"
+        },
+        {
+          "t": "applied ai engineer",
+          "level": "mid"
+        },
+        {
+          "t": "junior ai engineer",
+          "level": "entry"
+        },
+        {
+          "t": "ai developer",
+          "level": "entry"
+        },
+        {
+          "t": "llm engineer",
+          "level": "mid"
+        },
+        {
+          "t": "ai product engineer",
+          "level": "mid"
+        },
+        {
+          "t": "ai automation engineer",
+          "level": "entry"
+        },
+        {
+          "t": "generative ai developer",
+          "level": "mid"
+        }
+      ]
+    },
+    {
+      "id": "ai_evaluation",
+      "track": "AI",
+      "zh": "AI 评测 / 质量",
+      "en": "AI evaluation & quality",
+      "needs": [
+        "evaluation",
+        "llm",
+        "qa_manual",
+        "python",
+        "documentation"
+      ],
+      "key": [
+        "evaluation"
+      ],
+      "titles": [
+        {
+          "t": "ai evaluation engineer",
+          "level": "mid"
+        },
+        {
+          "t": "ai quality analyst",
+          "level": "entry"
+        },
+        {
+          "t": "llm evaluator",
+          "level": "entry"
+        },
+        {
+          "t": "ai red team",
+          "level": "mid"
+        },
+        {
+          "t": "ai analyst",
+          "level": "entry"
+        },
+        {
+          "t": "ai trainer",
+          "level": "entry"
+        },
+        {
+          "t": "human data quality",
+          "level": "entry"
+        }
+      ]
+    },
+    {
+      "id": "solutions",
+      "track": "FDE",
+      "zh": "方案 / 实施 / 客户技术",
+      "en": "Solutions & implementation",
+      "needs": [
+        "customer",
+        "web_backend",
+        "llm",
+        "stakeholders",
+        "requirements",
+        "documentation",
+        "automation"
+      ],
+      "key": [
+        "customer",
+        "requirements"
+      ],
+      "titles": [
+        {
+          "t": "forward deployed engineer",
+          "level": "mid"
+        },
+        {
+          "t": "solutions engineer",
+          "level": "mid"
+        },
+        {
+          "t": "associate solutions engineer",
+          "level": "entry"
+        },
+        {
+          "t": "implementation specialist",
+          "level": "entry"
+        },
+        {
+          "t": "implementation consultant",
+          "level": "entry"
+        },
+        {
+          "t": "technical consultant",
+          "level": "entry"
+        },
+        {
+          "t": "ai deployment engineer",
+          "level": "mid"
+        },
+        {
+          "t": "customer engineer",
+          "level": "mid"
+        },
+        {
+          "t": "data solutions strategist",
+          "level": "mid"
+        }
+      ]
+    },
+    {
+      "id": "devrel",
+      "track": "AI",
+      "zh": "开发者关系 / 技术内容",
+      "en": "Developer relations & technical content",
+      "needs": [
+        "documentation",
+        "web_backend",
+        "llm",
+        "teaching",
+        "customer"
+      ],
+      "key": [
+        "documentation",
+        "teaching"
+      ],
+      "titles": [
+        {
+          "t": "developer advocate",
+          "level": "mid"
+        },
+        {
+          "t": "developer relations",
+          "level": "mid"
+        },
+        {
+          "t": "technical writer",
+          "level": "entry"
+        },
+        {
+          "t": "developer educator",
+          "level": "mid"
+        },
+        {
+          "t": "ai enablement",
+          "level": "mid"
+        },
+        {
+          "t": "learning technologist",
+          "level": "entry"
+        }
+      ]
+    },
+    {
+      "id": "qa_automation",
+      "track": "QA",
+      "zh": "测试 / QA 自动化",
+      "en": "QA & test automation",
+      "needs": [
+        "testing",
+        "qa_manual",
+        "python",
+        "ci",
+        "automation"
+      ],
+      "key": [
+        "testing"
+      ],
+      "titles": [
+        {
+          "t": "qa engineer",
+          "level": "entry"
+        },
+        {
+          "t": "test automation engineer",
+          "level": "mid"
+        },
+        {
+          "t": "automation test engineer",
+          "level": "mid"
+        },
+        {
+          "t": "software test engineer",
+          "level": "entry"
+        },
+        {
+          "t": "qa analyst",
+          "level": "entry"
+        },
+        {
+          "t": "game qa tester",
+          "level": "entry"
+        }
+      ]
+    },
+    {
+      "id": "game_design",
+      "track": "GD",
+      "zh": "游戏设计",
+      "en": "Game design",
+      "needs": [
+        "game_design",
+        "live_ops",
+        "pricing",
+        "excel",
+        "funnel",
+        "requirements"
+      ],
+      "key": [
+        "game_design"
+      ],
+      "titles": [
+        {
+          "t": "game designer",
+          "level": "mid"
+        },
+        {
+          "t": "systems designer",
+          "level": "mid"
+        },
+        {
+          "t": "game economy designer",
+          "level": "mid"
+        },
+        {
+          "t": "live ops designer",
+          "level": "mid"
+        },
+        {
+          "t": "monetisation designer",
+          "level": "mid"
+        },
+        {
+          "t": "level designer",
+          "level": "mid"
+        },
+        {
+          "t": "junior game designer",
+          "level": "entry"
+        },
+        {
+          "t": "technical designer",
+          "level": "mid"
+        }
+      ]
+    },
+    {
+      "id": "game_operations",
+      "track": "GD",
+      "zh": "游戏运营 / 商业化",
+      "en": "Game operations & monetisation",
+      "needs": [
+        "live_ops",
+        "pricing",
+        "revenue",
+        "funnel",
+        "dashboards",
+        "stakeholders"
+      ],
+      "key": [
+        "live_ops",
+        "pricing"
+      ],
+      "titles": [
+        {
+          "t": "live ops analyst",
+          "level": "entry"
+        },
+        {
+          "t": "live operations specialist",
+          "level": "entry"
+        },
+        {
+          "t": "game operations",
+          "level": "mid"
+        },
+        {
+          "t": "game analyst",
+          "level": "entry"
+        },
+        {
+          "t": "monetisation manager",
+          "level": "mid"
+        },
+        {
+          "t": "liveops manager",
+          "level": "mid"
+        }
+      ]
+    },
+    {
+      "id": "product",
+      "track": "PM",
+      "zh": "产品 / 项目",
+      "en": "Product & delivery",
+      "needs": [
+        "requirements",
+        "stakeholders",
+        "funnel",
+        "experiment",
+        "customer",
+        "research"
+      ],
+      "key": [
+        "requirements",
+        "stakeholders"
+      ],
+      "titles": [
+        {
+          "t": "associate product manager",
+          "level": "entry"
+        },
+        {
+          "t": "product owner",
+          "level": "mid"
+        },
+        {
+          "t": "product operations",
+          "level": "entry"
+        },
+        {
+          "t": "technical product specialist",
+          "level": "mid"
+        },
+        {
+          "t": "product specialist",
+          "level": "entry"
+        }
+      ]
+    },
+    {
+      "id": "localisation",
+      "track": "BILING",
+      "zh": "双语 / 本地化",
+      "en": "Bilingual & localisation",
+      "needs": [
+        "chinese",
+        "game_design",
+        "qa_manual",
+        "documentation"
+      ],
+      "key": [
+        "chinese"
+      ],
+      "titles": [
+        {
+          "t": "chinese localisation",
+          "level": "entry"
+        },
+        {
+          "t": "mandarin speaking analyst",
+          "level": "entry"
+        },
+        {
+          "t": "chinese ai evaluator",
+          "level": "entry"
+        },
+        {
+          "t": "localisation qa",
+          "level": "entry"
+        }
+      ]
+    }
+  ]
+}
