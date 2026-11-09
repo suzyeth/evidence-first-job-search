@@ -1,6 +1,7 @@
 # Personal data — never commit
 scripts/sweep_config.json
 scripts/boardsweep_config.json
+*.json.bak
 tools/sweep_config.json
 tools/boardsweep_config.json
 master-cv-data.md

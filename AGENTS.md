@@ -2,6 +2,8 @@
 
 This repository is a job-search workflow for AI coding/chat assistants (Codex, Cursor, Claude Code, Gemini CLI, etc.).
 
+If the user does not code, point them to [使用说明.md](使用说明.md) / [GETTING-STARTED.md](GETTING-STARTED.md) and the double-click Start files; generate configs with `scripts/setup_wizard.py` rather than asking them to edit JSON.
+
 **Start by reading [SKILL.md](SKILL.md)** — it is the entry point and tells you which file in `references/` to load for each task. Follow its rules, especially:
 
 - Facts in any CV or cover letter must trace back to the user's `master-cv-data.md`. Never invent claims.

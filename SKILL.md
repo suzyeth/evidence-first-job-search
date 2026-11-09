@@ -39,6 +39,17 @@ description: 求职作战系统——岗位发现与存活检查、JD拆解、�
 
 `prompts/cv-reviewer.md` 是独立评审用的 prompt,文件开头写了在不同 AI 工具里怎么用。
 
+**用户不会编程时**:让用户双击仓库根目录的 `开始使用-Start.bat`(Windows)/ `开始使用-Start.command`(Mac),或指给他看 [使用说明.md](使用说明.md)。不要让他手写 JSON 或正则:搜索配置用 `python tools/setup_wizard.py` 生成。
+
+### 搜什么:岗位关键词推荐
+
+用户问「我还能投什么」「帮我扩一下搜索词」,或者 `sweep_config.json` 只有几个词时:
+
+1. 先跑 `python tools/keyword_suggest.py --from-logs`,拿到按事实库证据分档的岗位名:核心 / 相邻 / 拉伸,每档附有证据行、缺口,以及历史扫描里出现过几次。
+2. 脚本只认族谱 `role_taxonomy.json` 里的标题。跨行业的迁移方向(例如游戏策划 → 定价分析 / 实施顾问)由你补充,但**每个你提出的标题都必须引用事实库原句**作为依据;没有证据的不提。
+3. 历史扫描里从没出现过的词,标为「未验证」,先小范围试扫,再决定是否长期保留(词表纪律:只留真实产出过岗位的词)。
+4. 用户确认后再写入:`python tools/keyword_suggest.py --apply <core|编号>`(旧配置自动备份为 .bak)。
+
 ---
 
 ## 1. 例行 sweep("跑一下求职")

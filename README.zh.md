@@ -9,6 +9,15 @@
 
 **专门针对英国市场**，能直接对照 gov.uk 的签证担保名册；Claude Code、Codex、Cursor、Gemini CLI 或任何聊天 AI 都能用。
 
+## 不会编程？从这里开始
+
+看 **[使用说明](使用说明.md)**（[English](GETTING-STARTED.md)）。装一次 Python，之后双击 **`开始使用-Start.bat`**（Windows）或 **`开始使用-Start.command`**（Mac），用数字菜单操作，不用输入命令，也不用改配置文件：
+
+- **设置向导**：回答几个问题，自动生成搜索配置；
+- **岗位关键词推荐**：读你自己的事实库，推荐更宽的岗位名，每个都附上依据；
+- 扫描结果自动存成**可排序的网页表格和 Excel 能打开的 CSV**；
+- 文件直接拖进窗口；出错时用大白话告诉你怎么改（比如"第 12 行多了一个逗号"）。
+
 ## 只想查签证担保？3 步上手
 
 ![sponsor_check.py 演示：Bumble 查到法人 Badoo Limited，Spotlight Sports 查到连写的 Spotlightsportsgroup，常见词 "Linear" 被标为无法判断，JD 被识别为不担保](docs/demo-sponsor-check.png)
@@ -40,6 +49,17 @@
 
 打开[求职执行模板包](templates/career-workbook/README.md)：四份Markdown文件，每份包含空白表格和完整虚构示例。支持要求—事实—简历—故事追溯、中文/英文CV改写、STAR故事卡、模拟追问及复盘。真实填写内容保存在私有工作区，示例不进入真实履历。详细操作见[面试工作流](references/interview-workflow.md)。
 
+### 0. 先想清楚搜什么
+
+```bash
+python keyword_suggest.py               # 按事实库证据分三档推荐岗位名，附出处
+python keyword_suggest.py --from-logs   # 再统计每个词在过去的扫描里实际出现过多少次
+python keyword_suggest.py --apply core  # 把核心档写进 sweep_config.json（旧文件备份为 .bak）
+python setup_wizard.py                  # 或者回答几个问题，自动生成两份配置
+```
+
+岗位名来自可编辑的岗位族谱 `scripts/role_taxonomy.json`：每个岗位族列出它看重的技能和常见标题写法。事实库对关键技能证据充足的算**核心**，一半左右算**相邻**，再少算**拉伸**。以 ❌ 开头的行（没做过的事）不算证据。
+
 ### 1. 找岗位
 
 ```bash
@@ -47,7 +67,7 @@ python sweep.py new 7          # LinkedIn + Indeed,近 7 天
 python boardsweep.py           # 直接扫雇主招聘板:Greenhouse、Ashby、Lever、Workable、Teamtailor
 ```
 
-结果会跨站去重、过滤掉 Senior 岗、标出中介。**每个岗位都自动标上担保状态**，比如 `担保✅(Anysphere UK Ltd · Cheltenham)`，打开 JD 之前就知道这家能不能办签证。LinkedIn 报 429（被限流）时，先用 `--sites indeed` 顶上，过一阵再用 `--resume` 补跑。
+结果会跨站去重、过滤掉 Senior 岗、标出中介。`python report.py` 把最近一次扫描存成可排序的网页和 CSV。**每个岗位都自动标上担保状态**，比如 `担保✅(Anysphere UK Ltd · Cheltenham)`，打开 JD 之前就知道这家能不能办签证。LinkedIn 报 429（被限流）时，先用 `--sites indeed` 顶上，过一阵再用 `--resume` 补跑。
 
 ### 2. 跟踪想投的岗位
 
@@ -102,6 +122,9 @@ python fact_check.py ../applications/acme/resume_acme.md   # 会自动向上找 
 **脚本**（Python 3.10+，在 `scripts/` 目录下运行）
 
 ```bash
+python menu.py                                            # 和双击启动文件打开的是同一个菜单
+python setup_wizard.py                                    # 回答几个问题，自动生成两份配置
+# 或者手动：
 cp sweep_config.example.json sweep_config.json            # 你的搜索词和在跟的岗位
 cp boardsweep_config.example.json boardsweep_config.json  # 目标公司的招聘板 slug
 python -m pip install --target vendor python-jobspy       # 只有 sweep.py new / linkedin 需要

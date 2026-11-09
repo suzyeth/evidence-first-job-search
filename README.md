@@ -9,6 +9,15 @@ A job-search workflow for AI assistants, built around one rule: **every claim ne
 
 It is **built for the UK**, with checks against the gov.uk register of visa sponsors, and works with Claude Code, Codex, Cursor, Gemini CLI or any chat assistant.
 
+## New here and don't code? Start here
+
+Read **[Getting started](GETTING-STARTED.md)** ([中文](使用说明.md)). Install Python once, then double-click **`开始使用-Start.bat`** (Windows) or **`开始使用-Start.command`** (Mac) and use a numbered menu. You never type a command or edit a config file:
+
+- a **setup wizard** writes your search settings from a few plain answers;
+- **job-title suggestions** read your own fact base and propose wider titles to search, each with the lines that back it up;
+- scan results open as a **sortable web page and an Excel-ready CSV**;
+- files are dragged into the window, and errors explain what to fix ("line 12 has an extra comma").
+
 ## Just want to check visa sponsorship? 3 steps
 
 ![sponsor_check.py demo: Bumble resolves to Badoo Limited, Spotlight Sports to Spotlightsportsgroup, the common word "Linear" is flagged as ambiguous, and a JD is flagged as not sponsoring](docs/demo-sponsor-check.png)
@@ -40,6 +49,17 @@ You need [Python 3.10+](https://www.python.org/downloads/) and nothing else (on 
 
 The [career workbook](templates/career-workbook/README.md) contains four Chinese-language Markdown templates, each with a complete fictional example. It links job requirements to verified facts, CV bullets, stories and interview answers. Includes English CV examples, follow-up questions and practice reviews. Keep completed personal copies in a private workspace. See the [interview workflow](references/interview-workflow.md) for integration with existing materials.
 
+### 0. Decide what to search for
+
+```bash
+python keyword_suggest.py               # tiers of job titles your fact base supports, with evidence
+python keyword_suggest.py --from-logs   # plus how often each title actually appeared in your past scans
+python keyword_suggest.py --apply core  # add the core tier to sweep_config.json (old file kept as .bak)
+python setup_wizard.py                  # or answer a few questions and let it write both configs
+```
+
+Titles come from an editable role taxonomy (`scripts/role_taxonomy.json`): each role family lists the skills it needs and the common title variants. A family is **core** when your fact base strongly evidences its key skills, **adjacent** at about half, **stretch** below that. Lines starting with ❌ (things you have not done) never count as evidence.
+
 ### 1. Find jobs
 
 ```bash
@@ -47,7 +67,7 @@ python sweep.py new 7          # LinkedIn + Indeed, last 7 days
 python boardsweep.py           # employers' own boards: Greenhouse, Ashby, Lever, Workable, Teamtailor
 ```
 
-Results are de-duplicated across sites, senior roles are filtered out, and agencies are flagged. **Every job is tagged with its sponsor status**, e.g. `sponsor✅(Anysphere UK Ltd · Cheltenham)`, so you can see who can sponsor before opening the JD. If LinkedIn rate-limits you (429), use `--sites indeed` for now and rerun with `--resume` later.
+Results are de-duplicated across sites, senior roles are filtered out, and agencies are flagged. `python report.py` saves the latest scan as a sortable web page and a CSV. **Every job is tagged with its sponsor status**, e.g. `sponsor✅(Anysphere UK Ltd · Cheltenham)`, so you can see who can sponsor before opening the JD. If LinkedIn rate-limits you (429), use `--sites indeed` for now and rerun with `--resume` later.
 
 ### 2. Track the ones you want
 
@@ -102,6 +122,9 @@ Follow-up email templates, a take-home playbook and a salary negotiation handboo
 **Scripts** (Python 3.10+, run from `scripts/`)
 
 ```bash
+python menu.py                                            # the same numbered menu the Start files open
+python setup_wizard.py                                    # writes both configs from a few questions
+# or by hand:
 cp sweep_config.example.json sweep_config.json            # your searches and tracked jobs
 cp boardsweep_config.example.json boardsweep_config.json  # employer board slugs
 python -m pip install --target vendor python-jobspy       # only needed for sweep.py new / linkedin
