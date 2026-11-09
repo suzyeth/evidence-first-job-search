@@ -151,6 +151,12 @@ def tags(report: JdReport, max_years: int = 3) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     argv = apply_lang_arg(list(sys.argv[1:] if argv is None else argv))
+    if not [a for a in argv if not a.startswith("-")] and "-h" not in argv and "--help" not in argv:
+        print(tr("用法:把 JD 存成 .txt 文件,然后运行\n  python jd_check.py JD.txt\n"
+                 "也可以双击仓库里的「开始使用」文件,选 5,把 JD 文件拖进窗口或直接粘贴文字。",
+                 "Usage: save the JD as a .txt file, then run\n  python jd_check.py JD.txt\n"
+                 "Or double-click the Start file in the repository, choose 5 and drag the JD in or paste it."))
+        return 2
     p = argparse.ArgumentParser(description=tr("JD 体检:担保措辞 / 隐藏 Senior / 年限 / 年薪 vs 签证门槛",
                                                "JD check: sponsorship wording / hidden seniority / years / "
                                                "salary vs visa thresholds"))

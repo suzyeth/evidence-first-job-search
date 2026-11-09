@@ -29,6 +29,7 @@ if SCRIPT_DIR not in sys.path:
 import jd_check  # noqa: E402  (same folder)
 from i18n import apply_lang_arg, tr  # noqa: E402
 from countries import country_name  # noqa: E402
+from friendly import load_json_friendly  # noqa: E402
 
 DEFAULT_MAX_YEARS = 3
 
@@ -56,10 +57,9 @@ class Hit:
 
 def load_config(path: str) -> dict:
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return load_json_friendly(path)
     except FileNotFoundError:
-        raise SystemExit(tr(f"找不到 {path}。复制 boardsweep_config.example.json 为 boardsweep_config.json 并填写。",
+        raise SystemExit(tr(f"找不到 {path}。运行 python setup_wizard.py 自动生成,或复制 boardsweep_config.example.json 为 boardsweep_config.json 并填写。",
                             f"{path} not found. Copy boardsweep_config.example.json to boardsweep_config.json "
                             "and fill it in."))
 

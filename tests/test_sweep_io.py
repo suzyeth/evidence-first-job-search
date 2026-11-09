@@ -285,7 +285,7 @@ def test_load_config_missing_and_invalid(monkeypatch, tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text("{not json", encoding="utf-8")
     monkeypatch.setattr(sys, "argv", ["sweep.py", "--config", str(bad)])
-    with pytest.raises(SystemExit, match="JSON 格式错误"):
+    with pytest.raises(SystemExit, match="配置文件格式有误"):
         sw._load_config()
 
 

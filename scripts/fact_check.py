@@ -344,6 +344,14 @@ def render(path: str, findings: list[Finding]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     argv = apply_lang_arg(list(sys.argv[1:] if argv is None else argv))
+    if not [a for a in argv if not a.startswith("-")] and "-h" not in argv and "--help" not in argv:
+        print(tr("用法:\n  python fact_check.py 你的简历.md\n"
+                 "会自动在简历所在文件夹及上层查找 master-cv-data.md(你的事实库)。\n"
+                 "也可以双击仓库里的「开始使用」文件,选 6,把简历拖进窗口。",
+                 "Usage:\n  python fact_check.py your-cv.md\n"
+                 "master-cv-data.md (your fact base) is found automatically in the CV's folder or above.\n"
+                 "Or double-click the Start file in the repository, choose 6 and drag the CV in."))
+        return 2
     p = argparse.ArgumentParser(description=tr("简历 / 求职信事实核对(对照 master-cv-data.md)",
                                                "Fact-check a CV / cover letter against master-cv-data.md"))
     p.add_argument("files", nargs="+", help=tr("要检查的简历 / 求职信 markdown", "CV / cover-letter markdown files"))

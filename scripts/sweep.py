@@ -26,6 +26,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from i18n import apply_lang_arg, tr  # noqa: E402  (same folder)
+from friendly import explain_json_error  # noqa: E402
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36"}
 
@@ -53,14 +54,18 @@ def _config_path():
 def _load_config():
     path = _config_path()
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        with open(path, "r", encoding="utf-8-sig") as f:
+            text = f.read()
     except FileNotFoundError:
-        raise SystemExit(tr(f"找不到配置文件 {path}。复制 sweep_config.example.json 为 sweep_config.json 并填写。",
-                            f"Config file {path} not found. Copy sweep_config.example.json to sweep_config.json "
-                            "and fill it in."))
-    except ValueError as exc:
-        raise SystemExit(tr(f"配置文件 JSON 格式错误:{path}: {exc}", f"Invalid JSON in config file {path}: {exc}"))
+        raise SystemExit(tr(f"找不到配置文件 {path}。\n  最简单的办法:运行 python setup_wizard.py(或双击「开始使用」选 7),回答几个问题自动生成;\n"
+                            "  也可以复制 sweep_config.example.json 为 sweep_config.json 手动填写。",
+                            f"Config file {path} not found.\n  Easiest: run python setup_wizard.py (or double-click "
+                            "the Start file and choose 7) to create it;\n  or copy sweep_config.example.json to "
+                            "sweep_config.json and fill it in."))
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(explain_json_error(path, text, exc))
 
 
 CONFIG = _load_config()
